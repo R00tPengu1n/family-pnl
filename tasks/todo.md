@@ -120,12 +120,12 @@ rotates the token; reuse of a rotated token revokes the family; `POST /auth/logo
 revokes the current token (ADR-0005).
 
 **Acceptance criteria:**
-- [ ] Refresh returns a new pair and invalidates the old refresh token
-- [ ] Reusing an old refresh token returns 401 and revokes all tokens of that family
-- [ ] Token expiry uses the injected clock
+- [x] Refresh returns a new pair and invalidates the old refresh token
+- [x] Reusing an old refresh token returns 401 and revokes all tokens of that family
+- [x] Token expiry uses the injected clock
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_auth_refresh.py`
+- [x] `uv run pytest tests/integration/test_auth_refresh.py`
 
 **Dependencies:** Task 4
 **Files likely touched:** `models/identity.py`, `repositories/refresh_tokens.py`,
