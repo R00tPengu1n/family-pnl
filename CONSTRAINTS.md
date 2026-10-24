@@ -29,7 +29,7 @@ Checked by `python scripts/floor_guard.py` on the diff against `origin/main`
 | Types | Zero mypy errors in strict mode | `uv run python -m mypy` | edit, task end, CI | Strict typing is part of the spec |
 | Layers | Zero import-linter contract violations | `uv run lint-imports` (`check.ps1` calls `importlinter.cli` through python) | edit, task end, CI | Enforces the dependency direction from `SPEC.md` (see contracts below) |
 | Floor | Zero floor guard findings | `python scripts/floor_guard.py` | edit, task end, CI | See Floor |
-| Secrets | Zero gitleaks findings | `gitleaks git --redact --no-banner` (pre-commit hook and CI) | commit, CI | Any leaked token is an incident; `--redact` keeps values out of logs |
+| Secrets | Zero gitleaks findings | `gitleaks git --redact --no-banner` | CI (locally `.env` is git-ignored) | Any leaked token is an incident; `--redact` keeps values out of logs |
 | Tests | All tests pass, none skipped | `uv run python -m pytest` | task end, CI | Red tests mean the task is not done |
 | Coverage (project) | ≥ 85% of `src/` lines and branches | `uv run python -m pytest --cov --cov-fail-under=85` (branch coverage on in `pyproject.toml`) | task end, CI | Spec success criterion |
 | Security: code | Zero findings at ERROR severity | `semgrep scan --config p/python --config p/owasp-top-ten --severity ERROR --error src` | CI | External opinion on injection, crypto and auth mistakes; WARNING findings are reviewed, not blocking |
