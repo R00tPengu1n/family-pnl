@@ -79,6 +79,7 @@ def settings(migrated_database_url: str) -> Settings:
         environment=Environment.TEST,
         log_json=True,
         database_url=SecretStr(migrated_database_url),
+        jwt_secret=SecretStr("integration-tests-jwt-secret-32-chars-min"),
     )
 
 
