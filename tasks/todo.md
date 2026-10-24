@@ -50,13 +50,13 @@ naming conventions, Alembic configured for async and autogenerate,
 migrations once and roll back each test (ADR-0003). `GET /health` also checks the database.
 
 **Acceptance criteria:**
-- [ ] `docker compose -f docker-compose.dev.yml up -d` starts PostgreSQL and Redis
-- [ ] `alembic upgrade head` works on an empty database; an empty initial migration exists
-- [ ] Integration tests use `TEST_DATABASE_URL` or testcontainers and are isolated per test
+- [x] `docker compose -f docker-compose.dev.yml up -d` starts PostgreSQL and Redis
+- [x] `alembic upgrade head` works on an empty database; an empty initial migration exists
+- [x] Integration tests use `TEST_DATABASE_URL` or testcontainers and are isolated per test
 
 **Verification:**
-- [ ] `uv run pytest tests/integration`
-- [ ] Manual: stop PostgreSQL → `/health` reports the database as unavailable
+- [x] `uv run pytest tests/integration`
+- [x] Manual: stop PostgreSQL → `/health` reports the database as unavailable
 
 **Dependencies:** Task 1
 **Files likely touched:** `src/family_pnl/core/db.py`, `src/family_pnl/models/base.py`,
