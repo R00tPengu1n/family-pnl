@@ -1,6 +1,11 @@
 from fastapi import APIRouter, Response, status
 
-from family_pnl.api.deps import AuthServiceDep, ClientIpDep, CurrentUserDep
+from family_pnl.api.deps import (
+    AuthServiceDep,
+    ClientIpDep,
+    CurrentUserDep,
+    TelegramServiceDep,
+)
 from family_pnl.api.errors import ErrorResponse
 from family_pnl.api.schemas.auth import (
     LoginRequest,
@@ -9,6 +14,7 @@ from family_pnl.api.schemas.auth import (
     RegisterRequest,
     TokenResponse,
 )
+from family_pnl.api.schemas.telegram import LinkCodeResponse
 
 router = APIRouter(tags=["auth"])
 
@@ -65,3 +71,15 @@ async def logout(body: RefreshRequest, auth: AuthServiceDep) -> None:
 )
 async def me(user: CurrentUserDep) -> MeResponse:
     return MeResponse.of(user)
+
+
+@router.post(
+    "/me/telegram-link-code",
+    status_code=status.HTTP_201_CREATED,
+    summary="A one-time code (10 minutes) to link this account in the Telegram bot",
+    responses={status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse}},
+)
+async def telegram_link_code(
+    user: CurrentUserDep, telegram: TelegramServiceDep
+) -> LinkCodeResponse:
+    return LinkCodeResponse.of(await telegram.create_link_code(user))

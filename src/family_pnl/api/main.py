@@ -11,7 +11,7 @@ from fastapi import FastAPI
 
 from family_pnl import __version__
 from family_pnl.api.errors import ErrorResponse, register_error_handlers
-from family_pnl.api.routers import auth, health, household
+from family_pnl.api.routers import auth, bot, health, household
 from family_pnl.core.clock import Clock, SystemClock
 from family_pnl.core.config import Settings, get_settings
 from family_pnl.core.db import create_engine, create_session_factory
@@ -48,4 +48,5 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(household.router)
+    app.include_router(bot.router)
     return app
