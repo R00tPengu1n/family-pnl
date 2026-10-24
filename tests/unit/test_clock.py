@@ -40,3 +40,11 @@ def test_frozen_clock_rejects_naive_datetime() -> None:
 
     with pytest.raises(ValueError, match="time zone"):
         FrozenClock(naive)
+
+
+def test_frozen_clock_can_jump_to_a_new_moment() -> None:
+    clock = FrozenClock(datetime(2026, 10, 1, tzinfo=UTC))
+
+    clock.set(datetime(2026, 10, 20, tzinfo=UTC))
+
+    assert clock.now() == datetime(2026, 10, 20, tzinfo=UTC)
