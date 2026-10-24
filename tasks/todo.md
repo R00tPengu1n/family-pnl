@@ -455,12 +455,12 @@ by month, plan vs actual for each budget month in the period; amounts converted 
 requester's display currency at operation date rates.
 
 **Acceptance criteria:**
-- [ ] Two members get the same report in different display currencies; values differ only
+- [x] Two members get the same report in different display currencies; values differ only
       by conversion
-- [ ] Plan vs actual uses budget limits converted from the base currency
+- [x] Plan vs actual uses budget limits converted from the base currency
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_reports.py`
+- [x] `uv run pytest tests/integration/test_reports.py`
 
 **Dependencies:** Tasks 19, 20
 **Files likely touched:** `repositories/reports.py`, `services/reports.py`,

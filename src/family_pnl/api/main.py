@@ -21,6 +21,7 @@ from family_pnl.api.routers import (
     health,
     household,
     operations,
+    reports,
 )
 from family_pnl.core.clock import Clock, SystemClock
 from family_pnl.core.config import Settings, get_settings
@@ -68,4 +69,5 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
     app.include_router(categories.router)
     app.include_router(operations.router)
     app.include_router(budgets.router)
+    app.include_router(reports.router)
     return app
