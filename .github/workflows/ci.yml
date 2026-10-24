@@ -160,3 +160,11 @@ jobs:
       - name: Mutation score ≥ 60%
         if: steps.changes.outputs.run == 'true'
         run: uv run python scripts/mutation_gate.py --min 60
+      - name: Surviving mutants
+        # On a failed gate, list the mutants the tests did not catch and show their diffs.
+        if: failure() && steps.changes.outputs.run == 'true'
+        run: |
+          uv run mutmut results
+          for mutant in $(uv run mutmut results | awk -F: '/survived/ {print $1}'); do
+            uv run mutmut show "$mutant"
+          done
