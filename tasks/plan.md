@@ -86,10 +86,10 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 ### Phase 4: budgets
 - [x] Task 17: Budget approval window domain logic
 - [x] Task 18: Budget drafts, limits and owner approval API
-- [ ] Task 19: Budget execution, 80% / 100% thresholds and notification outbox
+- [x] Task 19: Budget execution, 80% / 100% thresholds and notification outbox
 
 ### Checkpoint 4: budgets
-- [ ] Window, owner-only approval and thresholds pass fake-clock tests
+- [x] Window, owner-only approval and thresholds pass fake-clock tests
 
 ### Phase 5: reports
 - [ ] Task 20: Base currency, display currency and input currency settings

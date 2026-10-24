@@ -410,12 +410,12 @@ detect crossing 80% / 100% and write a notification to the `notifications` outbo
 unique key (ADR-0009).
 
 **Acceptance criteria:**
-- [ ] Spent amounts in mixed currencies are converted at the rate on each operation's date
-- [ ] Each threshold produces exactly one notification per category per month
-- [ ] Notification is written in the same transaction as the operation
+- [x] Spent amounts in mixed currencies are converted at the rate on each operation's date
+- [x] Each threshold produces exactly one notification per category per month
+- [x] Notification is written in the same transaction as the operation
 
 **Verification:**
-- [ ] `uv run pytest tests/unit/test_thresholds.py tests/integration/test_budget_execution.py`
+- [x] `uv run pytest tests/unit/test_thresholds.py tests/integration/test_budget_execution.py`
 
 **Dependencies:** Tasks 16, 18
 **Files likely touched:** `models/notifications.py`, `services/budget_execution.py`,
