@@ -1,4 +1,8 @@
-"""FastAPI application factory. Run with `uvicorn family_pnl.api.main:app`."""
+"""FastAPI application factory.
+
+Run with `uvicorn --factory family_pnl.api.main:create_app`: settings are read when the
+server starts, not when the module is imported.
+"""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -30,6 +34,3 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_error_handlers(app)
     app.include_router(health.router)
     return app
-
-
-app = create_app()

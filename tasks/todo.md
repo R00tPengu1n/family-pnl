@@ -34,7 +34,7 @@ post-edit hook running the fast stage, and `.gitattributes` with LF line endings
 
 **Verification:**
 - [x] `uv run pytest tests/unit tests/integration/test_health.py`
-- [x] Manual: `uv run uvicorn family_pnl.api.main:app --reload`, open `/health` and `/docs`
+- [x] Manual: `uv run uvicorn --factory family_pnl.api.main:create_app --reload`, open `/health` and `/docs`
 
 **Dependencies:** None
 **Files likely touched:** `pyproject.toml`, `uv.lock`, `src/family_pnl/core/*`,
@@ -670,8 +670,7 @@ window or role are explained in Russian.
 **Description:** Multi-stage Dockerfile (uv build stage, slim non-root runtime) for API,
 worker and bot; `docker-compose.yml` with API, bot, worker, PostgreSQL, Redis, a migrate
 step, healthchecks and `restart: unless-stopped`; Docker build in CI.
-Run the API with `uvicorn --factory family_pnl.api.main:create_app` and drop the
-module-level `app`, so importing the module no longer reads `.env` (PR #1 review).
+Run the API with `uvicorn --factory family_pnl.api.main:create_app` (done in Task 2).
 
 **Acceptance criteria:**
 - [ ] `docker compose up --build` starts all services; `/health` and `/docs` answer
