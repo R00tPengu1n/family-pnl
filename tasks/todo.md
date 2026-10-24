@@ -21,10 +21,14 @@ configuration and the minimum running API. Includes `core/config.py` (pydantic-s
 `core/logging.py` (structlog JSON), `core/clock.py` (`Clock` protocol, system and fake
 clocks), `core/errors.py` (`DomainError` hierarchy + one JSON error format handler),
 `GET /health`, `scripts/check.ps1`, pre-commit, `.env.example`, ADR-0001 and ADR-0002.
+Wires the tools from `CONSTRAINTS.md`: import-linter contracts, `check.ps1 -Stage
+fast|task|full`, pre-commit hooks (ruff, gitleaks, floor guard), a Claude Code
+post-edit hook running the fast stage, and `.gitattributes` with LF line endings.
 
 **Acceptance criteria:**
 - [ ] `uv sync` installs everything from the lock file; `pyproject.toml` configures ruff
-      (line 100), mypy strict and pytest (coverage gate 85%)
+      (line 100), mypy strict, pytest (coverage gate 85%, branch coverage) and import-linter
+- [ ] `check.ps1 -Stage fast` ≤ 10 s and `-Stage task` ≤ 90 s, as in `CONSTRAINTS.md`
 - [ ] `GET /health` returns `200 {"status": "ok"}`; `/docs` serves OpenAPI
 - [ ] A raised `DomainError` subclass is returned in the common error format
 
@@ -63,12 +67,14 @@ migrations once and roll back each test (ADR-0003). `GET /health` also checks th
 ### Task 3: CI pipeline in GitHub Actions
 
 **Description:** Workflow on push and PR: `uv sync --locked`, ruff check, ruff format
-check, mypy, pytest with a PostgreSQL 16 service and Redis, coverage gate, pip-audit.
-Docker build is added to CI in Task 32.
+check, mypy, lint-imports, floor guard (`fetch-depth: 0`), pytest with a PostgreSQL 16
+service and Redis, coverage gate, pip-audit, Semgrep, gitleaks (`--redact`), and mutmut
+on PRs touching `src/family_pnl/domain/`. Docker build is added to CI in Task 32.
+Record the first measured coverage in `CONSTRAINTS.md` (Measured, not yet enforced).
 
 **Acceptance criteria:**
 - [ ] Workflow runs on PRs into `main` and on pushes to `main`
-- [ ] A failing lint, type check, test or coverage below 85% fails the job
+- [ ] Every row of `CONSTRAINTS.md` marked "CI" fails the job when violated
 - [ ] Branch protection on `main` requires the CI check (owner enables it in GitHub settings)
 
 **Verification:**
