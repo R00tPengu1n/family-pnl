@@ -17,6 +17,7 @@ from family_pnl.core.errors import (
     DomainError,
     NotFoundError,
     PermissionDeniedError,
+    RateLimitedError,
     ValidationFailedError,
 )
 
@@ -29,6 +30,7 @@ _DOMAIN_STATUS: tuple[tuple[type[DomainError], int], ...] = (
     (ConflictError, status.HTTP_409_CONFLICT),
     (PermissionDeniedError, status.HTTP_403_FORBIDDEN),
     (ValidationFailedError, status.HTTP_422_UNPROCESSABLE_CONTENT),
+    (RateLimitedError, status.HTTP_429_TOO_MANY_REQUESTS),
 )
 
 _HTTP_CODES = {
@@ -74,7 +76,11 @@ def _status_for(error: DomainError) -> int:
 
 async def _domain_error(_: Request, exc: DomainError) -> JSONResponse:
     # RFC 6750: a 401 tells the client which authentication scheme to use.
-    headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, AuthenticationError) else None
+    headers: dict[str, str] | None = None
+    if isinstance(exc, AuthenticationError):
+        headers = {"WWW-Authenticate": "Bearer"}
+    elif isinstance(exc, RateLimitedError):
+        headers = {"Retry-After": str(exc.retry_after)}
     return _error(_status_for(exc), exc.code, exc.message, headers=headers)
 
 
