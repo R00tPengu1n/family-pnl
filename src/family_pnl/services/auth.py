@@ -154,6 +154,10 @@ class AuthService:
 
     async def authenticate(self, access_token: str) -> CurrentUser:
         user_id = decode_access_token(access_token, secret=self._jwt_secret, now=self._clock.now())
+        return await self.current_user(user_id)
+
+    async def current_user(self, user_id: uuid.UUID) -> CurrentUser:
+        """The user with their current membership, read fresh from the database."""
         user = await self._users.get(user_id)
         found = await self._households.get_membership(user_id)
         if user is None or found is None:
