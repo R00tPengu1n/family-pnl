@@ -72,7 +72,9 @@ class HouseholdOut(BaseModel):
 
 class MeResponse(BaseModel):
     id: uuid.UUID
-    email: str
+    email: str | None = Field(description="Empty for accounts created through Telegram")
+    display_name: str | None
+    telegram_linked: bool
     role: Role
     household: HouseholdOut
 
@@ -81,6 +83,8 @@ class MeResponse(BaseModel):
         return cls(
             id=user.id,
             email=user.email,
+            display_name=user.display_name,
+            telegram_linked=user.telegram_linked,
             role=user.role,
             household=HouseholdOut(
                 id=user.household_id, name=user.household_name, timezone=user.household_timezone

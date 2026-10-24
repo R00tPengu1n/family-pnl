@@ -47,7 +47,9 @@ logger = structlog.get_logger(__name__)
 @dataclass(frozen=True, slots=True)
 class CurrentUser:
     id: uuid.UUID
-    email: str
+    email: str | None
+    display_name: str | None
+    telegram_linked: bool
     role: Role
     household_id: uuid.UUID
     household_name: str
@@ -88,14 +90,8 @@ class AuthService:
         user = User(
             id=uuid.uuid4(), email=email, password_hash=hash_password(password), created_at=now
         )
-        household = Household(
-            id=uuid.uuid4(),
-            name=household_name,
-            timezone=self._settings.default_timezone,
-            created_at=now,
-        )
-        membership = Membership(
-            user_id=user.id, household_id=household.id, role=Role.OWNER, joined_at=now
+        household, membership = Household.with_owner(
+            user.id, name=household_name, timezone=self._settings.default_timezone, now=now
         )
         try:
             self._users.add(user)
@@ -197,6 +193,8 @@ def _current_user(user: User, membership: Membership, household: Household) -> C
     return CurrentUser(
         id=user.id,
         email=user.email,
+        display_name=user.display_name,
+        telegram_linked=user.telegram_id is not None,
         role=membership.role,
         household_id=household.id,
         household_name=household.name,

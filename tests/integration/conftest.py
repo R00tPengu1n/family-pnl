@@ -30,6 +30,7 @@ from family_pnl.core.db import create_engine
 from family_pnl.core.redis import create_redis
 from family_pnl.services.rate_limit import LoginRateLimiter
 
+BOT_SECRET = "integration-tests-bot-secret-of-32-chars"
 ALEMBIC_INI = str(Path(__file__).resolve().parents[2] / "alembic.ini")
 
 
@@ -108,6 +109,7 @@ def settings(migrated_database_url: str, redis_url: str) -> Settings:
         database_url=SecretStr(migrated_database_url),
         jwt_secret=SecretStr("integration-tests-jwt-secret-32-chars-min"),
         redis_url=SecretStr(redis_url),
+        bot_api_secret=SecretStr(BOT_SECRET),
     )
 
 

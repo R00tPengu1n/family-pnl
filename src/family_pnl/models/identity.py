@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from family_pnl.domain.identity import Role
@@ -9,12 +9,21 @@ from family_pnl.models.base import Base
 
 
 class User(Base):
+    """A person. Signs in with email and password, through Telegram, or both."""
+
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint("email IS NOT NULL OR telegram_id IS NOT NULL", name="has_login"),
+        CheckConstraint("(email IS NULL) = (password_hash IS NULL)", name="email_with_password"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     # Stored normalised (domain.identity.normalize_email); 320 is the RFC 5321 maximum.
-    email: Mapped[str] = mapped_column(String(320), unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(320), unique=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    # Telegram user ids exceed 2**31, hence BIGINT.
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
+    display_name: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -25,6 +34,17 @@ class Household(Base):
     name: Mapped[str] = mapped_column(String(100))
     timezone: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    @classmethod
+    def with_owner(
+        cls, owner_id: uuid.UUID, *, name: str, timezone: str, now: datetime
+    ) -> tuple["Household", "Membership"]:
+        """A new, empty household and its owner's membership (not yet in a session)."""
+        household = cls(id=uuid.uuid4(), name=name, timezone=timezone, created_at=now)
+        owner = Membership(
+            user_id=owner_id, household_id=household.id, role=Role.OWNER, joined_at=now
+        )
+        return household, owner
 
 
 class Membership(Base):
@@ -86,3 +106,18 @@ class Invite(Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
     redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TelegramLinkCode(Base):
+    """A one-time code that links a Telegram account to an existing user."""
+
+    __tablename__ = "telegram_link_codes"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

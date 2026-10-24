@@ -1,9 +1,10 @@
 """FastAPI dependencies shared by routers."""
 
+import hmac
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -14,6 +15,7 @@ from family_pnl.core.errors import AuthenticationError
 from family_pnl.services.auth import AuthService, CurrentUser
 from family_pnl.services.households import HouseholdService
 from family_pnl.services.rate_limit import LoginRateLimiter
+from family_pnl.services.telegram import TelegramService
 
 # auto_error=False: a missing header goes through our error format, not FastAPI's 403.
 _bearer = HTTPBearer(auto_error=False, description="Access token from POST /auth/login")
@@ -62,6 +64,33 @@ def get_household_service(
     return HouseholdService(session, clock)
 
 
+def get_telegram_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    clock: Annotated[Clock, Depends(get_clock)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> TelegramService:
+    return TelegramService(session, clock, settings)
+
+
+class BotUnauthorizedError(AuthenticationError):
+    code = "bot_unauthorized"
+
+
+def require_bot(
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_bot_token: Annotated[str | None, Header(description="Shared bot secret")] = None,
+) -> None:
+    """Only the bot may call; without a configured secret nobody may (ADR-0007)."""
+    expected = settings.bot_api_secret
+    # compare_digest takes the same time wherever the strings differ.
+    if (
+        expected is None
+        or x_bot_token is None
+        or not hmac.compare_digest(x_bot_token.encode(), expected.get_secret_value().encode())
+    ):
+        raise BotUnauthorizedError("Bot authentication required")
+
+
 def get_client_ip(request: Request) -> str:
     # The direct peer. Behind a reverse proxy uvicorn's --proxy-headers sets it (Task 35).
     return request.client.host if request.client is not None else "unknown"
@@ -80,3 +109,4 @@ CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ClientIpDep = Annotated[str, Depends(get_client_ip)]
 HouseholdServiceDep = Annotated[HouseholdService, Depends(get_household_service)]
+TelegramServiceDep = Annotated[TelegramService, Depends(get_telegram_service)]

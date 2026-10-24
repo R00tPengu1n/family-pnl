@@ -6,7 +6,14 @@ from datetime import datetime
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from family_pnl.models import Household, Invite, Membership, RefreshToken, User
+from family_pnl.models import (
+    Household,
+    Invite,
+    Membership,
+    RefreshToken,
+    TelegramLinkCode,
+    User,
+)
 
 
 class UserRepository:
@@ -18,6 +25,15 @@ class UserRepository:
 
     async def get_by_email(self, email: str) -> User | None:
         return await self._session.scalar(select(User).where(User.email == email))
+
+    async def get_by_telegram_id(self, telegram_id: int) -> User | None:
+        return await self._session.scalar(select(User).where(User.telegram_id == telegram_id))
+
+    async def lock(self, user_id: uuid.UUID) -> User:
+        result = await self._session.scalars(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        return result.one()
 
     def add(self, user: User) -> None:
         self._session.add(user)
@@ -103,4 +119,19 @@ class RefreshTokenRepository:
             update(RefreshToken)
             .where(RefreshToken.family_id == family_id, RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now)
+        )
+
+
+class TelegramLinkCodeRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def add(self, code: TelegramLinkCode) -> None:
+        self._session.add(code)
+
+    async def get_for_update(self, code_hash: str) -> TelegramLinkCode | None:
+        return await self._session.scalar(
+            select(TelegramLinkCode)
+            .where(TelegramLinkCode.code_hash == code_hash)
+            .with_for_update()
         )

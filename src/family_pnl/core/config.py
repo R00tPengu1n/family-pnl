@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     redis_url: SecretStr = SecretStr("redis://127.0.0.1:6379/0")
     login_max_failures: int = Field(default=5, ge=1)
     login_failure_window_seconds: int = Field(default=15 * 60, ge=1)
+    # Shared secret of the Telegram bot (X-Bot-Token); bot endpoints are off without it.
+    bot_api_secret: SecretStr | None = None
 
     @property
     def access_token_ttl(self) -> timedelta:
@@ -81,11 +83,11 @@ class Settings(BaseSettings):
             raise ValueError("redis_url must start with redis:// or rediss://")
         return value
 
-    @field_validator("jwt_secret")
+    @field_validator("jwt_secret", "bot_api_secret")
     @classmethod
-    def _long_enough(cls, value: SecretStr) -> SecretStr:
-        if len(value.get_secret_value()) < 32:
-            raise ValueError("jwt_secret must have at least 32 characters")
+    def _long_enough(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and len(value.get_secret_value()) < 32:
+            raise ValueError("secrets must have at least 32 characters")
         return value
 
 
