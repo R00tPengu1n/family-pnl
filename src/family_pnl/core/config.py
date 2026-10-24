@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     login_failure_window_seconds: int = Field(default=15 * 60, ge=1)
     # Shared secret of the Telegram bot (X-Bot-Token); bot endpoints are off without it.
     bot_api_secret: SecretStr | None = None
+    nbrb_base_url: str = "https://api.nbrb.by"
 
     @property
     def access_token_ttl(self) -> timedelta:

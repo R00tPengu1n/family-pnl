@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from family_pnl.core.clock import Clock
 from family_pnl.core.config import Settings
 from family_pnl.core.errors import AuthenticationError
+from family_pnl.integrations.nbrb import NbrbClient
 from family_pnl.services.auth import AuthService, CurrentUser
+from family_pnl.services.fx import RateService, RateSource
 from family_pnl.services.households import HouseholdService
 from family_pnl.services.rate_limit import LoginRateLimiter
 from family_pnl.services.telegram import TelegramService
@@ -91,6 +93,18 @@ def require_bot(
         raise BotUnauthorizedError("Bot authentication required")
 
 
+def get_rate_source(request: Request) -> RateSource:
+    return NbrbClient(request.app.state.nbrb_http)
+
+
+def get_rate_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    source: Annotated[RateSource, Depends(get_rate_source)],
+    clock: Annotated[Clock, Depends(get_clock)],
+) -> RateService:
+    return RateService(session, source, clock)
+
+
 def get_client_ip(request: Request) -> str:
     # The direct peer. Behind a reverse proxy uvicorn's --proxy-headers sets it (Task 35).
     return request.client.host if request.client is not None else "unknown"
@@ -110,3 +124,5 @@ AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ClientIpDep = Annotated[str, Depends(get_client_ip)]
 HouseholdServiceDep = Annotated[HouseholdService, Depends(get_household_service)]
 TelegramServiceDep = Annotated[TelegramService, Depends(get_telegram_service)]
+ClockDep = Annotated[Clock, Depends(get_clock)]
+RateServiceDep = Annotated[RateService, Depends(get_rate_service)]

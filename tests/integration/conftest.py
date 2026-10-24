@@ -137,6 +137,7 @@ async def app(
     # ASGITransport does not run the lifespan, so the app's clients are closed here.
     await app.state.engine.dispose()
     await app.state.redis.aclose()
+    await app.state.nbrb_http.aclose()
 
 
 @pytest.fixture

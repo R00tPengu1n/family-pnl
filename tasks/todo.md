@@ -243,12 +243,12 @@ rates on demand, falls back to the nearest earlier date and to the last known ra
 warning log when NBRB is down; `GET /fx/rates?date=` and `GET /fx/convert`. ADR-0008.
 
 **Acceptance criteria:**
-- [ ] A weekend date uses the nearest earlier stored rate
-- [ ] NBRB unavailable → last known rate is returned and a warning is logged
-- [ ] Fetched historical rates are stored once and reused (no second HTTP call)
+- [x] A weekend date uses the nearest earlier stored rate
+- [x] NBRB unavailable → last known rate is returned and a warning is logged
+- [x] Fetched historical rates are stored once and reused (no second HTTP call)
 
 **Verification:**
-- [ ] `uv run pytest tests/unit/test_rate_service.py tests/integration/test_fx_api.py`
+- [x] `uv run pytest tests/unit/test_rate_service.py tests/integration/test_fx_api.py`
 
 **Dependencies:** Tasks 2, 10
 **Files likely touched:** `models/fx.py`, `repositories/fx_rates.py`, `services/fx.py`,

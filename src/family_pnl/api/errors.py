@@ -18,6 +18,7 @@ from family_pnl.core.errors import (
     NotFoundError,
     PermissionDeniedError,
     RateLimitedError,
+    UnavailableError,
     ValidationFailedError,
 )
 
@@ -31,6 +32,7 @@ _DOMAIN_STATUS: tuple[tuple[type[DomainError], int], ...] = (
     (PermissionDeniedError, status.HTTP_403_FORBIDDEN),
     (ValidationFailedError, status.HTTP_422_UNPROCESSABLE_CONTENT),
     (RateLimitedError, status.HTTP_429_TOO_MANY_REQUESTS),
+    (UnavailableError, status.HTTP_503_SERVICE_UNAVAILABLE),
 )
 
 _HTTP_CODES = {

@@ -7,6 +7,7 @@ from pydantic import SecretStr
 
 from family_pnl.core.errors import AuthenticationError
 from family_pnl.core.security import (
+    PRODUCTION_HASHER,
     create_access_token,
     decode_access_token,
     hash_password,
@@ -103,3 +104,10 @@ def test_refresh_tokens_are_random_and_stored_only_as_a_digest() -> None:
     assert len(first) >= 43  # 32 random bytes, URL-safe base64
     assert hash_refresh_token(first) == hash_refresh_token(first)
     assert hash_refresh_token(first) != first
+
+
+def test_production_hashing_keeps_strong_parameters() -> None:
+    # Tests swap in a cheap hasher for speed; production must stay at RFC 9106 strength.
+    assert PRODUCTION_HASHER.memory_cost >= 64 * 1024
+    assert PRODUCTION_HASHER.time_cost >= 3
+    assert PRODUCTION_HASHER.type.name == "ID"

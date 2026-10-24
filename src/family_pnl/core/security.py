@@ -22,7 +22,9 @@ ISSUER = "family-pnl"
 ACCESS_CLAIM_TYPE = "access"
 _ALGORITHM = "HS256"
 
-_hasher = PasswordHasher()
+# argon2-cffi defaults (RFC 9106 low-memory profile): 64 MiB, 3 passes, 4 lanes.
+PRODUCTION_HASHER = PasswordHasher()
+_hasher = PRODUCTION_HASHER
 
 
 def hash_password(password: str) -> str:
