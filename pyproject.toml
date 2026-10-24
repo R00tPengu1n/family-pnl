@@ -5,9 +5,12 @@ description = "Family finance tracking service: REST API, Telegram bot and backg
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.20.1",
+    "asyncpg>=0.32.0",
     "fastapi>=0.162.0",
     "pydantic>=2.14.1",
     "pydantic-settings>=2.16.1",
+    "sqlalchemy[asyncio]>=2.1.6",
     "structlog>=26.1.0",
     "tzdata>=2026.5",
     "uvicorn[standard]>=0.54.0",
@@ -24,6 +27,7 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "ruff>=0.17.2",
+    "testcontainers[postgres]>=4.15.0",
 ]
 
 [build-system]
