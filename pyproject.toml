@@ -1,0 +1,146 @@
+[project]
+name = "family-pnl"
+version = "0.1.0"
+description = "Family finance tracking service: REST API, Telegram bot and background worker."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.162.0",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.1",
+    "structlog>=26.1.0",
+    "tzdata>=2026.5",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "import-linter>=2.15",
+    "mypy>=2.4.0",
+    "pip-audit>=2.10.1",
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/family_pnl", "src/family_pnl_bot"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # isort
+    "N",            # pep8-naming
+    "UP",           # pyupgrade
+    "B",            # bugbear
+    "S",            # bandit security rules
+    "A",            # shadowed builtins
+    "C4",           # comprehensions
+    "DTZ",          # naive datetimes: time comes from the injected Clock
+    "T20",          # print
+    "SIM",          # simplify
+    "PT",           # pytest style
+    "RET",          # return statements
+    "ASYNC",        # async pitfalls
+    "TID",          # banned / relative imports
+    "PTH",          # pathlib
+    "RUF",          # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert by design.
+"tests/**" = ["S101"]
+# Developer scripts print reports and call git with fixed arguments.
+"scripts/**" = ["T201", "S603", "S607"]
+# Script tests run git and the script under test with fixed arguments.
+"tests/scripts/**" = ["S101", "S603", "S607"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+mypy_path = "src"
+packages = ["family_pnl", "family_pnl_bot"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "raise AssertionError", "@overload"]
+
+[tool.importlinter]
+root_packages = ["family_pnl", "family_pnl_bot"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layers: api -> services -> repositories -> models"
+type = "layers"
+layers = [
+    "family_pnl.api",
+    "family_pnl.services",
+    "family_pnl.repositories",
+    "family_pnl.models",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain is pure: no frameworks, no I/O, only core"
+type = "forbidden"
+source_modules = ["family_pnl.domain"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "httpx",
+    "redis",
+    "arq",
+    "aiogram",
+    "family_pnl.api",
+    "family_pnl.services",
+    "family_pnl.repositories",
+    "family_pnl.models",
+    "family_pnl.integrations",
+    "family_pnl.worker",
+]
+
+[[tool.importlinter.contracts]]
+name = "Bot talks to the API only: no imports from family_pnl"
+type = "forbidden"
+source_modules = ["family_pnl_bot"]
+forbidden_modules = ["family_pnl"]
+
+[[tool.importlinter.contracts]]
+name = "API and worker are independent"
+type = "independence"
+modules = ["family_pnl.api", "family_pnl.worker"]

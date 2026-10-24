@@ -22,7 +22,7 @@ from pathlib import Path
 
 CONSTRAINTS = "CONSTRAINTS.md"
 # Files that quote the patterns below by design.
-SELF_EXEMPT = {"scripts/floor_guard.py", CONSTRAINTS}
+SELF_EXEMPT = {"scripts/floor_guard.py", "tests/scripts/test_floor_guard.py", CONSTRAINTS}
 
 SUPPRESSIONS = re.compile(
     r"#\s*noqa|#\s*type:\s*ignore|#\s*pyright:\s*ignore|#\s*pragma:\s*no\s*cover"
@@ -36,9 +36,7 @@ ASSERTIONS = re.compile(r"\bassert\b|pytest\.raises|pytest\.warns|\.assert_\w+\(
 EXCEPTION_ROW = re.compile(r"^\|\s*W\d+\s*\|")
 EXCEPTION_REF = re.compile(r"\bW\d+\b")
 
-MIN_BEFORE = re.compile(
-    r"(>=|>|≥|at least|minimum|\bmin\b|no less than|not fall|not drop)\s*$"
-)
+MIN_BEFORE = re.compile(r"(>=|>|≥|at least|minimum|\bmin\b|no less than|not fall|not drop)\s*$")
 MAX_BEFORE = re.compile(
     r"(<=|<|≤|at most|maximum|\bmax\b|no more than|under|below|not grow|not exceed)\s*$"
 )

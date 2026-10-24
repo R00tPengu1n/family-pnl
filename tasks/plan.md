@@ -46,7 +46,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 ## Task List
 
 ### Phase 0: Foundation
-- [ ] Task 1: Project skeleton, tooling and `GET /health`
+- [x] Task 1: Project skeleton, tooling and `GET /health`
 - [ ] Task 2: Database layer, Alembic and integration test fixtures
 - [ ] Task 3: CI pipeline in GitHub Actions
 

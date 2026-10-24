@@ -21,3 +21,6 @@ htmlcov/
 *.db
 
 CLAUDE.md
+
+# Claude Code personal settings
+.claude/settings.local.json
