@@ -22,7 +22,7 @@ from family_pnl.domain.telegram import (
     new_link_code,
     normalize_link_code,
 )
-from family_pnl.models import Household, Membership, TelegramLinkCode, User
+from family_pnl.models import Category, Household, Membership, TelegramLinkCode, User
 from family_pnl.repositories.identity import (
     HouseholdRepository,
     InviteRepository,
@@ -140,6 +140,8 @@ class TelegramService:
             # Rows that reference the new user (membership, invite) are written after it.
             await self._session.flush()
             self._households.add_member(membership)
+            if invite is None:
+                self._session.add_all(Category.defaults_for(membership.household_id, now))
             if invite is not None:
                 invite.redeemed_by = user.id
                 invite.redeemed_at = now
