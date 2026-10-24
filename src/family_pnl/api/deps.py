@@ -23,6 +23,7 @@ from family_pnl.services.fx import RateService, RateSource
 from family_pnl.services.households import HouseholdService
 from family_pnl.services.operations import OperationService
 from family_pnl.services.rate_limit import LoginRateLimiter
+from family_pnl.services.settings import SettingsService
 from family_pnl.services.telegram import TelegramService
 
 # auto_error=False: a missing header goes through our error format, not FastAPI's 403.
@@ -136,8 +137,9 @@ def get_operation_service(
 def get_balance_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     rates: Annotated[RateService, Depends(get_rate_service)],
+    clock: Annotated[Clock, Depends(get_clock)],
 ) -> BalanceService:
-    return BalanceService(session, rates)
+    return BalanceService(session, rates, clock)
 
 
 def get_budget_service(
@@ -154,6 +156,12 @@ def get_budget_execution_service(
     clock: Annotated[Clock, Depends(get_clock)],
 ) -> BudgetExecutionService:
     return BudgetExecutionService(session, rates, clock)
+
+
+def get_settings_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SettingsService:
+    return SettingsService(session)
 
 
 def get_client_ip(request: Request) -> str:
@@ -183,3 +191,4 @@ OperationServiceDep = Annotated[OperationService, Depends(get_operation_service)
 BalanceServiceDep = Annotated[BalanceService, Depends(get_balance_service)]
 BudgetServiceDep = Annotated[BudgetService, Depends(get_budget_service)]
 BudgetExecutionServiceDep = Annotated[BudgetExecutionService, Depends(get_budget_execution_service)]
+SettingsServiceDep = Annotated[SettingsService, Depends(get_settings_service)]

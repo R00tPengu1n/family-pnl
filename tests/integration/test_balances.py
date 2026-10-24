@@ -1,13 +1,22 @@
 """Account balances in the account currency, from operations converted at their dates."""
 
+from datetime import UTC, datetime
+
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
 from family_pnl.api.deps import get_rate_source
+from family_pnl.core.clock import FrozenClock
 from tests.integration.helpers import Actor, join_household, sign_up
 from tests.integration.ledger_helpers import category_id, new_account, record
 from tests.integration.test_rate_service import RATES_TUESDAY, TUESDAY, FakeSource
+
+
+@pytest.fixture
+def clock() -> FrozenClock:
+    """Today is 2026-10-20, the day the fake rate source knows."""
+    return FrozenClock(datetime(2026, 10, 20, 9, 0, tzinfo=UTC))
 
 
 @pytest.fixture
@@ -25,7 +34,7 @@ async def anna(client: AsyncClient) -> Actor:
 async def balances(client: AsyncClient, actor: Actor) -> dict[str, str]:
     response = await client.get("/accounts/balances", headers=actor.headers)
     assert response.status_code == 200, response.text
-    return {b["name"]: b["balance"] for b in response.json()}
+    return {b["name"]: b["balance"] for b in response.json()["accounts"]}
 
 
 async def test_a_new_account_has_a_zero_balance(
@@ -144,7 +153,7 @@ async def test_archived_accounts_keep_their_balance_but_are_listed_only_on_reque
     )
 
     assert default == {}
-    assert everything.json()[0]["balance"] == "5.00"
+    assert everything.json()["accounts"][0]["balance"] == "5.00"
 
 
 async def test_one_currency_balances_need_no_rates(
@@ -155,6 +164,7 @@ async def test_one_currency_balances_need_no_rates(
     await record(
         client, anna, type="expense", amount="7", currency="BYN", account_id=card, category_id=food
     )
+    await client.patch("/me/settings", headers=anna.headers, json={"display_currency": "BYN"})
     source.down = True
 
     assert await balances(client, anna) == {"Card": "-7.00"}
