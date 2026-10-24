@@ -80,7 +80,7 @@ jobs:
           enable-cache: true
       - run: uv sync
       - name: pytest with the coverage gate (85% floor or the recorded ratchet)
-        run: uv run pytest -n auto --cov --cov-fail-under="$(python scripts/ratchet.py)" --cov-report=term-missing
+        run: uv run pytest -n auto --dist loadgroup --cov --cov-fail-under="$(python scripts/ratchet.py)" --cov-report=term-missing
 
   dependencies:
     name: Dependency audit
