@@ -81,5 +81,7 @@ def test_fresh_code_is_usable() -> None:
     ids=["expires-now", "expired", "used"],
 )
 def test_expired_or_used_code_is_invalid(expires_at: datetime, used_at: datetime | None) -> None:
-    with pytest.raises(LinkCodeInvalidError, match="invalid or has expired"):
+    with pytest.raises(LinkCodeInvalidError) as info:
         check_link_code_usable(expires_at=expires_at, used_at=used_at, now=NOW)
+
+    assert info.value.message == "Link code is invalid or has expired"
