@@ -473,11 +473,11 @@ requester's display currency at operation date rates.
 UTF-8 with BOM for Excel, `Decimal` written without float artefacts.
 
 **Acceptance criteria:**
-- [ ] Exported CSV matches the JSON report for the same period
-- [ ] Content-Type and file name headers are correct
+- [x] Exported CSV matches the JSON report for the same period
+- [x] Content-Type and file name headers are correct
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_report_export.py`
+- [x] `uv run pytest tests/integration/test_report_export.py`
 
 **Dependencies:** Task 21
 **Files likely touched:** `services/csv_export.py`, `api/routers/reports.py`, tests
