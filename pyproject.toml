@@ -29,6 +29,9 @@ dev = [
     "ruff>=0.17.2",
     "testcontainers[postgres]>=4.15.0",
 ]
+mutation = [
+    "mutmut>=3.8.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -152,3 +155,9 @@ forbidden_modules = ["family_pnl"]
 name = "API and worker are independent"
 type = "independence"
 modules = ["family_pnl.api", "family_pnl.worker"]
+
+[tool.mutmut]
+# Mutation testing targets the pure domain layer; runs in CI on Linux (see CONSTRAINTS.md).
+source_paths = ["src"]
+only_mutate = ["src/family_pnl/domain/*"]
+pytest_add_cli_args_test_selection = ["tests/unit"]
