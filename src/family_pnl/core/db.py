@@ -2,11 +2,14 @@
 
 import asyncio
 
+import structlog
 from pydantic import SecretStr
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine as _create_async_engine
+
+logger = structlog.get_logger(__name__)
 
 
 def create_engine(database_url: SecretStr) -> AsyncEngine:
@@ -23,6 +26,10 @@ async def ping(engine: AsyncEngine, seconds: float = 2.0) -> bool:
     try:
         async with asyncio.timeout(seconds), engine.connect() as connection:
             await connection.execute(text("SELECT 1"))
-    except (OSError, SQLAlchemyError, TimeoutError):
+    except (OSError, SQLAlchemyError, TimeoutError) as exc:
+        # The root cause (refused, bad password) is what an operator needs. A timeout's
+        # __cause__ is the internal CancelledError, so it is reported as itself.
+        cause = exc if isinstance(exc, TimeoutError) else exc.__cause__ or exc
+        logger.warning("database_unavailable", error=type(cause).__name__)
         return False
     return True
