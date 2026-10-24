@@ -44,8 +44,9 @@ $checks.Add(@{ Name = 'floor guard';  Args = @('scripts/floor_guard.py', '--base
 if ($Stage -in @('task', 'full')) {
     # 85% floor, or the ratchet recorded in CONSTRAINTS.md minus 0.5 points if higher.
     # Four workers: fastest on 8 cores (each has its own test database, see tests/integration).
+    # loadgroup keeps the tests that import aiogram on one worker (tests/integration/bot).
     $coverageGate = (& $python scripts/ratchet.py).Trim()
-    $checks.Add(@{ Name = 'pytest';   Args = @('-m', 'pytest', '-q', '-n', '4', '--cov', "--cov-fail-under=$coverageGate", '--cov-report=term-missing') })
+    $checks.Add(@{ Name = 'pytest';   Args = @('-m', 'pytest', '-q', '-n', '4', '--dist', 'loadgroup', '--cov', "--cov-fail-under=$coverageGate", '--cov-report=term-missing') })
 }
 if ($Stage -eq 'full') {
     # Audit exactly what uv.lock pins (with hashes); the project itself is not on PyPI.

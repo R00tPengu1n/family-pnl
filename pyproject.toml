@@ -5,6 +5,7 @@ description = "Family finance tracking service: REST API, Telegram bot and backg
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiogram>=3.28.2",
     "alembic>=1.20.1",
     "argon2-cffi>=25.1.0",
     "arq>=0.25.0",
@@ -13,7 +14,7 @@ dependencies = [
     "email-validator>=2.3.0",
     "fastapi>=0.162.0",
     "httpx>=0.28.1",
-    "pydantic>=2.14.1",
+    "pydantic>=2.13.5",
     "pydantic-settings>=2.16.1",
     "pyjwt>=2.15.1",
     "redis>=8.1.0",
@@ -72,6 +73,9 @@ select = [
     "PTH",          # pathlib
     "RUF",          # ruff-specific
 ]
+
+# Bot texts are Russian: the one-letter words "В", "К", "С" are not look-alikes there.
+allowed-confusables = ["В", "К", "С"]
 
 [tool.ruff.lint.per-file-ignores]
 # Tests assert by design and use fixed passwords and token values as fixtures.

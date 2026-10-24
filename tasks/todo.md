@@ -581,13 +581,13 @@ link codes).
 The bot imports nothing from `family_pnl`.
 
 **Acceptance criteria:**
-- [ ] New Telegram user gets an account and household via `/start`
-- [ ] `/start <invite>` joins the household; errors from the API are shown in Russian
-- [ ] Import-linter or a test fails if `family_pnl_bot` imports `family_pnl`
+- [x] New Telegram user gets an account and household via `/start`
+- [x] `/start <invite>` joins the household; errors from the API are shown in Russian
+- [x] Import-linter or a test fails if `family_pnl_bot` imports `family_pnl`
 
 **Verification:**
-- [ ] `uv run pytest tests/bot/test_start.py`
-- [ ] Manual: test bot token in `.env`, `uv run python -m family_pnl_bot`, send `/start`
+- [x] `uv run pytest tests/integration/bot` (the bot tests run against the real API in-process)
+- [ ] Manual (waits for the owner's test bot token): test bot token in `.env`, `uv run python -m family_pnl_bot`, send `/start`
 
 **Dependencies:** Task 8
 **Files likely touched:** `family_pnl_bot/__main__.py`, `config.py`, `api_client.py`,
@@ -605,7 +605,7 @@ Returns type, amount `Decimal`, optional currency and the category text.
 - [ ] Never produces `float`
 
 **Verification:**
-- [ ] `uv run pytest tests/bot/test_parser.py`
+- [ ] `uv run pytest tests/integration/bot/test_parser.py`
 
 **Dependencies:** Task 27 (package only)
 **Files likely touched:** `family_pnl_bot/parser.py`, tests
@@ -624,7 +624,7 @@ confirm with an "undo" button.
 - [ ] Undo deletes the operation via the API
 
 **Verification:**
-- [ ] `uv run pytest tests/bot/test_quick_entry.py` (mocked API client)
+- [ ] `uv run pytest tests/integration/bot/test_quick_entry.py` (mocked API client)
 
 **Dependencies:** Tasks 20, 28
 **Files likely touched:** `handlers/quick_entry.py`, `keyboards.py`, `api_client.py`, tests
@@ -640,7 +640,7 @@ confirm with an "undo" button.
 - [ ] Switching currency updates `/me/settings` and the next report
 
 **Verification:**
-- [ ] `uv run pytest tests/bot/test_reports_handlers.py`
+- [ ] `uv run pytest tests/integration/bot/test_reports_handlers.py`
 
 **Dependencies:** Tasks 21, 27
 **Files likely touched:** `handlers/reports.py`, `formatting.py`, `keyboards.py`, tests
@@ -657,7 +657,7 @@ window or role are explained in Russian.
 - [ ] Only the owner sees and can use "Approve"
 
 **Verification:**
-- [ ] `uv run pytest tests/bot/test_budget_handlers.py`
+- [ ] `uv run pytest tests/integration/bot/test_budget_handlers.py`
 
 **Dependencies:** Tasks 18, 27
 **Files likely touched:** `handlers/budget.py`, `keyboards.py`, `api_client.py`, tests
