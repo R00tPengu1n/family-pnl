@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, StringConstraints
@@ -7,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, StringConstraints
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.ledger import AccountType
 from family_pnl.models import Account
+from family_pnl.services.balances import AccountBalance
 
 AccountName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 
@@ -55,4 +57,20 @@ class AccountOut(BaseModel):
             holder_id=account.holder_id,
             archived=account.archived,
             created_at=account.created_at,
+        )
+
+
+class AccountBalanceOut(BaseModel):
+    account_id: uuid.UUID
+    name: str
+    currency: Currency
+    balance: Decimal
+
+    @classmethod
+    def of(cls, item: AccountBalance) -> "AccountBalanceOut":
+        return cls(
+            account_id=item.account.id,
+            name=item.account.name,
+            currency=item.account.currency,
+            balance=item.balance.amount,
         )

@@ -30,6 +30,7 @@ from family_pnl.models import Account, Category, Operation
 from family_pnl.repositories.ledger import (
     AccountRepository,
     CategoryRepository,
+    OperationFilter,
     OperationRepository,
 )
 from family_pnl.services.auth import CurrentUser
@@ -111,6 +112,11 @@ class OperationService:
         if operation is None:
             raise OperationNotFoundError("Operation not found")
         return operation
+
+    async def search(
+        self, user: CurrentUser, filters: OperationFilter, *, limit: int, offset: int
+    ) -> tuple[list[Operation], int]:
+        return await self._operations.search(user.household_id, filters, limit=limit, offset=offset)
 
     async def update(
         self, user: CurrentUser, operation_id: uuid.UUID, changes: OperationChanges
