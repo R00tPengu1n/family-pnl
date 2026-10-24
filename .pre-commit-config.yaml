@@ -1,0 +1,34 @@
+# Install once: uv run python -m pre_commit install
+# Python tools run from the project venv through `uv run python -m`, so hook versions
+# always match uv.lock and Windows Smart App Control does not block .exe wrappers.
+# gitleaks runs in CI: its locally built binary is blocked by Smart App Control.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run python -m ruff check --force-exclude
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run python -m ruff format --check --force-exclude
+        language: system
+        types_or: [python, pyi]
+      - id: floor-guard
+        name: floor guard (CONSTRAINTS.md)
+        entry: uv run python scripts/floor_guard.py
+        language: system
+        pass_filenames: false
+        always_run: true
