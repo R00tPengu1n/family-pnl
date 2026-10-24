@@ -2,11 +2,12 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, Query, Request, Response, status
 
-from family_pnl.api.deps import CurrentUserDep, OperationServiceDep
+from family_pnl.api.deps import CsvImportServiceDep, CurrentUserDep, OperationServiceDep
 from family_pnl.api.errors import ErrorResponse
 from family_pnl.api.schemas.operations import (
+    ImportResultOut,
     OperationCreate,
     OperationOut,
     OperationPage,
@@ -15,6 +16,7 @@ from family_pnl.api.schemas.operations import (
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.ledger import OperationType
 from family_pnl.repositories.ledger import OperationFilter
+from family_pnl.services.csv_import import MAX_BYTES, InvalidImportFileError
 from family_pnl.services.operations import NewOperation, OperationChanges
 
 router = APIRouter(
@@ -38,6 +40,34 @@ async def create_operation(
 ) -> OperationOut:
     new = NewOperation(**body.model_dump())
     return OperationOut.of(await operations.create(user, new))
+
+
+@router.post(
+    "/import",
+    summary="Import incomes and expenses from a CSV file (the format is in the README)",
+    responses={status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse}},
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {"text/csv": {"schema": {"type": "string"}}},
+        }
+    },
+)
+async def import_operations(
+    request: Request,
+    user: CurrentUserDep,
+    importer: CsvImportServiceDep,
+    dry_run: Annotated[bool, Query(description="Check every row, import nothing")] = False,
+    strict: Annotated[bool, Query(description="Import nothing if any row is wrong")] = True,
+) -> ImportResultOut:
+    content = bytearray()
+    async for chunk in request.stream():
+        content += chunk
+        if len(content) > MAX_BYTES:
+            # Stop reading: the limit protects memory, so the rest is never buffered.
+            raise InvalidImportFileError(f"The file is larger than {MAX_BYTES} bytes")
+    result = await importer.import_csv(user, bytes(content), dry_run=dry_run, strict=strict)
+    return ImportResultOut.of(result)
 
 
 @router.get("", summary="Operations of the household, newest first, with filters")

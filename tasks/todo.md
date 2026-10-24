@@ -490,12 +490,12 @@ validates every row; either imports all valid rows or none (`dry_run` and strict
 and returns errors with row numbers. Size and row limits.
 
 **Acceptance criteria:**
-- [ ] Invalid rows are reported with row number, column and reason
-- [ ] Unknown category or account in a row is an error, not an auto-create
-- [ ] Format documented in README (Task 33)
+- [x] Invalid rows are reported with row number, column and reason
+- [x] Unknown category or account in a row is an error, not an auto-create
+- [x] Format documented in README (Task 33)
 
 **Verification:**
-- [ ] `uv run pytest tests/unit/test_csv_import.py tests/integration/test_operations_import.py`
+- [x] `uv run pytest tests/unit/test_csv_import.py tests/integration/test_operations_import.py`
 
 **Dependencies:** Task 16
 **Files likely touched:** `services/csv_import.py`, `api/routers/operations.py`,

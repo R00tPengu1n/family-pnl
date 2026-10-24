@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.ledger import OperationType
 from family_pnl.models import Operation
+from family_pnl.services.csv_import import ImportResult
 
 # NUMERIC(14, 2): positive, at most two decimals and twelve digits before the point.
 Amount = Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
@@ -104,3 +105,31 @@ class OperationPage(BaseModel):
     total: int = Field(description="All operations matching the filters")
     limit: int
     offset: int
+
+
+class ImportErrorOut(BaseModel):
+    row: int = Field(description="As in a spreadsheet: the header is row 1")
+    column: str = Field(description="Empty when the whole row is wrong")
+    reason: str
+
+
+class ImportResultOut(BaseModel):
+    dry_run: bool
+    strict: bool
+    total_rows: int
+    valid_rows: int
+    imported: int
+    errors: list[ImportErrorOut]
+
+    @classmethod
+    def of(cls, result: ImportResult) -> "ImportResultOut":
+        return cls(
+            dry_run=result.dry_run,
+            strict=result.strict,
+            total_rows=result.total_rows,
+            valid_rows=result.valid_rows,
+            imported=result.imported,
+            errors=[
+                ImportErrorOut(row=e.row, column=e.column, reason=e.reason) for e in result.errors
+            ],
+        )
