@@ -23,6 +23,7 @@ from family_pnl.services.fx import RateService, RateSource
 from family_pnl.services.households import HouseholdService
 from family_pnl.services.operations import OperationService
 from family_pnl.services.rate_limit import LoginRateLimiter
+from family_pnl.services.reports import ReportService
 from family_pnl.services.settings import SettingsService
 from family_pnl.services.telegram import TelegramService
 
@@ -150,6 +151,14 @@ def get_budget_service(
     return BudgetService(session, clock, settings)
 
 
+def get_report_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    rates: Annotated[RateService, Depends(get_rate_service)],
+    clock: Annotated[Clock, Depends(get_clock)],
+) -> ReportService:
+    return ReportService(session, rates, clock)
+
+
 def get_budget_execution_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     rates: Annotated[RateService, Depends(get_rate_service)],
@@ -191,4 +200,5 @@ OperationServiceDep = Annotated[OperationService, Depends(get_operation_service)
 BalanceServiceDep = Annotated[BalanceService, Depends(get_balance_service)]
 BudgetServiceDep = Annotated[BudgetService, Depends(get_budget_service)]
 BudgetExecutionServiceDep = Annotated[BudgetExecutionService, Depends(get_budget_execution_service)]
+ReportServiceDep = Annotated[ReportService, Depends(get_report_service)]
 SettingsServiceDep = Annotated[SettingsService, Depends(get_settings_service)]
