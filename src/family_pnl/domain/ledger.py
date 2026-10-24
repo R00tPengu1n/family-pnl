@@ -21,10 +21,15 @@ class CategoryKind(StrEnum):
 class OperationType(StrEnum):
     INCOME = "income"
     EXPENSE = "expense"
+    TRANSFER = "transfer"
 
 
 class CategoryKindMismatchError(ValidationFailedError):
     code = "category_kind_mismatch"
+
+
+class TransferSameAccountError(ValidationFailedError):
+    code = "transfer_same_account"
 
 
 # Created with every household. The names are data shown to Russian-speaking users of the bot.
@@ -62,6 +67,8 @@ def require_category_editor(
 
 
 def check_category_fits(operation: OperationType, kind: CategoryKind) -> None:
+    if operation is OperationType.TRANSFER:
+        raise CategoryKindMismatchError("A transfer has no category")
     if operation.value != kind.value:
         raise CategoryKindMismatchError(f"A {kind} category cannot be used for an {operation}")
 
@@ -73,3 +80,8 @@ def require_operation_editor(
     if role is Role.OWNER or (author_id is not None and author_id == actor_id):
         return
     raise PermissionDeniedError("Only its author or the household owner can change this operation")
+
+
+def check_transfer_accounts(source_id: uuid.UUID, target_id: uuid.UUID) -> None:
+    if source_id == target_id:
+        raise TransferSameAccountError("A transfer needs two different accounts")

@@ -11,6 +11,7 @@ from family_pnl.domain.ledger import (
     OperationType,
     category_key,
     check_category_fits,
+    check_transfer_accounts,
     require_category_editor,
     require_operation_editor,
 )
@@ -105,7 +106,27 @@ def test_a_category_of_the_other_kind_does_not_fit(
 
 
 def test_operation_types_have_stable_values() -> None:
-    assert [t.value for t in OperationType] == ["income", "expense"]
+    assert [t.value for t in OperationType] == ["income", "expense", "transfer"]
+
+
+def test_a_transfer_takes_no_category() -> None:
+    with pytest.raises(ValidationFailedError) as info:
+        check_category_fits(OperationType.TRANSFER, CategoryKind.EXPENSE)
+
+    assert info.value.code == "category_kind_mismatch"
+    assert info.value.message == "A transfer has no category"
+
+
+def test_a_transfer_between_two_accounts_is_valid() -> None:
+    check_transfer_accounts(ANNA, IVAN)
+
+
+def test_a_transfer_to_the_same_account_is_invalid() -> None:
+    with pytest.raises(ValidationFailedError) as info:
+        check_transfer_accounts(ANNA, ANNA)
+
+    assert info.value.code == "transfer_same_account"
+    assert info.value.message == "A transfer needs two different accounts"
 
 
 @pytest.mark.parametrize(
