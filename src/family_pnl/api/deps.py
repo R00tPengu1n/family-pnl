@@ -19,6 +19,7 @@ from family_pnl.services.balances import BalanceService
 from family_pnl.services.budget_execution import BudgetExecutionService
 from family_pnl.services.budgets import BudgetService
 from family_pnl.services.categories import CategoryService
+from family_pnl.services.csv_import import CsvImportService
 from family_pnl.services.fx import RateService, RateSource
 from family_pnl.services.households import HouseholdService
 from family_pnl.services.operations import OperationService
@@ -135,6 +136,14 @@ def get_operation_service(
     return OperationService(session, clock, rates)
 
 
+def get_csv_import_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    clock: Annotated[Clock, Depends(get_clock)],
+    rates: Annotated[RateService, Depends(get_rate_service)],
+) -> CsvImportService:
+    return CsvImportService(session, clock, rates)
+
+
 def get_balance_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     rates: Annotated[RateService, Depends(get_rate_service)],
@@ -197,6 +206,7 @@ RateServiceDep = Annotated[RateService, Depends(get_rate_service)]
 AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]
 CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
 OperationServiceDep = Annotated[OperationService, Depends(get_operation_service)]
+CsvImportServiceDep = Annotated[CsvImportService, Depends(get_csv_import_service)]
 BalanceServiceDep = Annotated[BalanceService, Depends(get_balance_service)]
 BudgetServiceDep = Annotated[BudgetService, Depends(get_budget_service)]
 BudgetExecutionServiceDep = Annotated[BudgetExecutionService, Depends(get_budget_execution_service)]
