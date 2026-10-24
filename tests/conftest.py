@@ -1,6 +1,8 @@
-from collections.abc import AsyncIterator
+import logging
+from collections.abc import AsyncIterator, Iterator
 
 import pytest
+import structlog
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
@@ -23,3 +25,19 @@ async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as http:
         yield http
+
+
+@pytest.fixture(autouse=True)
+def _restore_logging() -> Iterator[None]:
+    """configure_logging changes process-wide state; give every test a clean slate."""
+    managed = [
+        logging.getLogger(),
+        *(logging.getLogger(n) for n in ("uvicorn", "uvicorn.error", "uvicorn.access")),
+    ]
+    saved = [(lg, lg.handlers[:], lg.level, lg.propagate) for lg in managed]
+    yield
+    structlog.reset_defaults()
+    for lg, handlers, level, propagate in saved:
+        lg.handlers[:] = handlers
+        lg.setLevel(level)
+        lg.propagate = propagate
