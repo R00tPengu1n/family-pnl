@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from family_pnl.core.config import Environment, Settings
+from family_pnl.core.config import Environment, Settings, get_settings
 
 DATABASE_URL = "postgresql+asyncpg://app:s3cret@localhost:5432/family_pnl"
 
@@ -72,3 +72,14 @@ def test_database_password_is_hidden_in_repr_but_available_to_code() -> None:
 
     assert "s3cret" not in repr(settings)
     assert settings.database_url.get_secret_value() == DATABASE_URL
+
+
+def test_get_settings_reads_the_environment_once() -> None:
+    get_settings.cache_clear()
+    try:
+        first = get_settings()
+
+        assert first is get_settings()
+        assert first.database_url.get_secret_value() == DATABASE_URL
+    finally:
+        get_settings.cache_clear()

@@ -13,16 +13,20 @@ from family_pnl import __version__
 from family_pnl.api.errors import ErrorResponse, register_error_handlers
 from family_pnl.api.routers import health
 from family_pnl.core.config import Settings, get_settings
+from family_pnl.core.db import create_engine, create_session_factory
 from family_pnl.core.logging import configure_logging
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    # Creating the engine opens no connection; the pool connects on first use.
+    engine = create_engine(settings.database_url)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         configure_logging(settings.log_level, json_output=settings.log_json)
         yield
+        await engine.dispose()
 
     app = FastAPI(
         title="Family P&L API",
@@ -31,6 +35,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
         responses={"default": {"model": ErrorResponse, "description": "Error"}},
     )
+    app.state.engine = engine
+    app.state.session_factory = create_session_factory(engine)
     register_error_handlers(app)
     app.include_router(health.router)
     return app
