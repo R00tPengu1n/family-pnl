@@ -109,9 +109,7 @@ class RateService:
             if row is not None:
                 quotes[currency] = Quote(currency, row.byn_per_unit, row.rate_date)
         earlier = day
-        for _ in range(WALK_BACK_DAYS):
-            if _complete(quotes):
-                return quotes
+        while not _complete(quotes) and day - earlier < timedelta(days=WALK_BACK_DAYS):
             earlier -= timedelta(days=1)
             try:
                 fetched = await self._source.rates_on(earlier)

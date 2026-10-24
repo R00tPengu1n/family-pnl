@@ -211,3 +211,30 @@ async def test_nbrb_failing_while_walking_back_means_rates_are_unavailable(
         await service.rates_on(TUESDAY + timedelta(days=2))
 
     assert [log["event"] for log in logs] == ["fx_rate_source_unavailable"]
+
+
+async def test_nbrb_down_keeps_the_stored_part_and_fills_the_rest_from_earlier(
+    service: RateService, source: FakeSource
+) -> None:
+    await service.rates_on(MONDAY)
+    await service.store(TUESDAY, {Currency.USD: Decimal("2.9950")})
+    source.down = True
+
+    result = await service.rates_on(TUESDAY)
+
+    assert summary(result) == {
+        Currency.USD: (Decimal("2.9950"), TUESDAY),
+        Currency.RUB: (Decimal("0.036080"), MONDAY),
+    }
+
+
+async def test_a_rate_seven_days_back_is_still_found(
+    db_session: AsyncSession, clock: FrozenClock
+) -> None:
+    source = FakeSource({TUESDAY: RATES_TUESDAY})
+    service = RateService(db_session, source, clock)
+
+    result = await service.rates_on(TUESDAY + timedelta(days=7))
+
+    assert summary(result)[Currency.USD] == (Decimal("2.9950"), TUESDAY)
+    assert len(source.calls) == 8
