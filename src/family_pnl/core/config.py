@@ -66,7 +66,7 @@ class Settings(BaseSettings):
 
     @field_validator("default_timezone")
     @classmethod
-    def _known_timezone(cls, value: str) -> str:
+    def check_timezone(cls, value: str) -> str:
         try:
             ZoneInfo(value)
         except (ZoneInfoNotFoundError, ValueError) as exc:

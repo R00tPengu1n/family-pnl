@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, StringConstraints
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.ledger import AccountType
 from family_pnl.models import Account
-from family_pnl.services.balances import AccountBalance
+from family_pnl.services.balances import AccountBalance, BalanceSummary
 
 AccountName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 
@@ -73,4 +73,18 @@ class AccountBalanceOut(BaseModel):
             name=item.account.name,
             currency=item.account.currency,
             balance=item.balance.amount,
+        )
+
+
+class BalancesOut(BaseModel):
+    display_currency: Currency
+    total: Decimal
+    accounts: list[AccountBalanceOut]
+
+    @classmethod
+    def of(cls, summary: BalanceSummary) -> "BalancesOut":
+        return cls(
+            display_currency=summary.total.currency,
+            total=summary.total.amount,
+            accounts=[AccountBalanceOut.of(item) for item in summary.accounts],
         )

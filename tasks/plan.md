@@ -92,7 +92,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 - [x] Window, owner-only approval and thresholds pass fake-clock tests
 
 ### Phase 5: reports
-- [ ] Task 20: Base currency, display currency and input currency settings
+- [x] Task 20: Base currency, display currency and input currency settings
 - [ ] Task 21: Period report (totals, by category, member, month, plan vs actual)
 - [ ] Task 22: CSV export of a report
 - [ ] Task 23: CSV import of operations with per-row errors

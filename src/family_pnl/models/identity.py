@@ -26,6 +26,13 @@ class User(Base):
     # Telegram user ids exceed 2**31, hence BIGINT.
     telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     display_name: Mapped[str | None] = mapped_column(String(100))
+    # Per-member preferences; NULL means "the household base currency".
+    display_currency: Mapped[Currency | None] = mapped_column(
+        checked_enum(Currency, "display_currency")
+    )
+    input_currency: Mapped[Currency | None] = mapped_column(
+        checked_enum(Currency, "input_currency")
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 

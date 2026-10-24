@@ -4,6 +4,7 @@ from family_pnl.api.deps import (
     AuthServiceDep,
     ClientIpDep,
     CurrentUserDep,
+    SettingsServiceDep,
     TelegramServiceDep,
 )
 from family_pnl.api.errors import ErrorResponse
@@ -14,7 +15,9 @@ from family_pnl.api.schemas.auth import (
     RegisterRequest,
     TokenResponse,
 )
+from family_pnl.api.schemas.settings import MemberSettingsIn, MemberSettingsOut
 from family_pnl.api.schemas.telegram import LinkCodeResponse
+from family_pnl.services.settings import MemberChanges
 
 router = APIRouter(tags=["auth"])
 
@@ -83,3 +86,20 @@ async def telegram_link_code(
     user: CurrentUserDep, telegram: TelegramServiceDep
 ) -> LinkCodeResponse:
     return LinkCodeResponse.of(await telegram.create_link_code(user))
+
+
+@router.get("/me/settings", summary="Display and default input currency of the current member")
+async def my_settings(user: CurrentUserDep) -> MemberSettingsOut:
+    return MemberSettingsOut.of(user)
+
+
+@router.patch("/me/settings", summary="Change the current member's currencies")
+async def update_my_settings(
+    body: MemberSettingsIn,
+    user: CurrentUserDep,
+    settings: SettingsServiceDep,
+    auth: AuthServiceDep,
+) -> MemberSettingsOut:
+    sent = {name: getattr(body, name) for name in body.model_fields_set}
+    await settings.update_member(user, MemberChanges(fields=sent))
+    return MemberSettingsOut.of(await auth.current_user(user.id))

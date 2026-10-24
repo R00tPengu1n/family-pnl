@@ -8,9 +8,12 @@ the account currency need no rate at all.
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from family_pnl.core.clock import Clock
+from family_pnl.domain.budgets import local_today
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.money import Money
 from family_pnl.models import Account
@@ -25,8 +28,15 @@ class AccountBalance:
     balance: Money
 
 
+@dataclass(frozen=True, slots=True)
+class BalanceSummary:
+    accounts: list[AccountBalance]
+    total: Money  # in the member's display currency, at today's rates
+
+
 class BalanceService:
-    def __init__(self, session: AsyncSession, rates: RateService) -> None:
+    def __init__(self, session: AsyncSession, rates: RateService, clock: Clock) -> None:
+        self._clock = clock
         self._accounts = AccountRepository(session)
         self._balances = BalanceRepository(session)
         self._rates = rates
@@ -48,3 +58,18 @@ class BalanceService:
                 money = rates_by_date[flow.operation_date].convert(money, total.currency)
             totals[flow.account_id] = total + money
         return [AccountBalance(a, totals[a.id].rounded()) for a in accounts]
+
+    async def summary(self, user: CurrentUser, *, include_archived: bool) -> BalanceSummary:
+        """Balances plus their total in the member's display currency at today's rates."""
+        accounts = await self.balances(user, include_archived=include_archived)
+        target = user.display_currency
+        total = Money.zero(target)
+        if any(item.balance.currency is not target for item in accounts):
+            today = local_today(self._clock.now(), ZoneInfo(user.household_timezone))
+            rates = await self._rates.rates_on(today)
+            for item in accounts:
+                total = total + rates.convert(item.balance, target)
+        else:
+            for item in accounts:
+                total = total + item.balance
+        return BalanceSummary(accounts, total.rounded())

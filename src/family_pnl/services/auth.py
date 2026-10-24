@@ -56,6 +56,16 @@ class CurrentUser:
     household_name: str
     household_timezone: str
     household_base_currency: Currency
+    display_currency_pref: Currency | None = None
+    input_currency_pref: Currency | None = None
+
+    @property
+    def display_currency(self) -> Currency:
+        return self.display_currency_pref or self.household_base_currency
+
+    @property
+    def input_currency(self) -> Currency:
+        return self.input_currency_pref or self.household_base_currency
 
 
 @dataclass(frozen=True, slots=True)
@@ -203,4 +213,6 @@ def _current_user(user: User, membership: Membership, household: Household) -> C
         household_name=household.name,
         household_timezone=household.timezone,
         household_base_currency=household.base_currency,
+        display_currency_pref=user.display_currency,
+        input_currency_pref=user.input_currency,
     )
