@@ -7,6 +7,7 @@ transaction that is rolled back, so tests never see each other's data.
 
 import os
 from collections.abc import AsyncIterator, Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,7 @@ from testcontainers.community.postgres import PostgresContainer
 
 from family_pnl.api.deps import get_session
 from family_pnl.api.main import create_app
+from family_pnl.core.clock import FrozenClock
 from family_pnl.core.config import Environment, Settings
 from family_pnl.core.db import create_engine
 
@@ -79,12 +81,20 @@ def settings(migrated_database_url: str) -> Settings:
         environment=Environment.TEST,
         log_json=True,
         database_url=SecretStr(migrated_database_url),
+        jwt_secret=SecretStr("integration-tests-jwt-secret-32-chars-min"),
     )
 
 
 @pytest.fixture
-async def app(settings: Settings, db_session: AsyncSession) -> AsyncIterator[FastAPI]:
-    app = create_app(settings)
+def clock() -> FrozenClock:
+    return FrozenClock(datetime(2026, 10, 24, 9, 0, tzinfo=UTC))
+
+
+@pytest.fixture
+async def app(
+    settings: Settings, db_session: AsyncSession, clock: FrozenClock
+) -> AsyncIterator[FastAPI]:
+    app = create_app(settings, clock=clock)
 
     async def test_session() -> AsyncIterator[AsyncSession]:
         yield db_session

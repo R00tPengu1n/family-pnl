@@ -6,10 +6,13 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.1",
+    "argon2-cffi>=25.1.0",
     "asyncpg>=0.32.0",
+    "email-validator>=2.3.0",
     "fastapi>=0.162.0",
     "pydantic>=2.14.1",
     "pydantic-settings>=2.16.1",
+    "pyjwt>=2.15.1",
     "sqlalchemy[asyncio]>=2.1.6",
     "structlog>=26.1.0",
     "tzdata>=2026.5",
@@ -67,14 +70,14 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Tests assert by design.
-"tests/**" = ["S101"]
+# Tests assert by design and use fixed passwords and token values as fixtures.
+"tests/**" = ["S101", "S105", "S106"]
 # Developer scripts print reports and call git with fixed arguments.
 "scripts/**" = ["T201", "S603", "S607"]
 # Generated revisions always import op and sa, even when a revision does not use them.
 "migrations/versions/**" = ["F401"]
 # Script tests run git and the script under test with fixed arguments.
-"tests/scripts/**" = ["S101", "S603", "S607"]
+"tests/scripts/**" = ["S101", "S105", "S106", "S603", "S607"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -104,6 +107,8 @@ filterwarnings = ["error"]
 [tool.coverage.run]
 source = ["src"]
 branch = true
+# SQLAlchemy async runs code in greenlets; without this, lines after an await go untraced.
+concurrency = ["greenlet", "thread"]
 
 [tool.coverage.report]
 fail_under = 85

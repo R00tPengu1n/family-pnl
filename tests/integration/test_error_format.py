@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from pydantic import BaseModel
 
 from family_pnl.core.errors import (
+    AuthenticationError,
     ConflictError,
     DomainError,
     NotFoundError,
@@ -26,6 +27,7 @@ def app(app: FastAPI) -> FastAPI:
         "denied": PermissionDeniedError("Only the owner can approve"),
         "invalid": ValidationFailedError("Category kind does not match"),
         "generic": DomainError("Something is wrong"),
+        "unauthorized": AuthenticationError("Token is invalid or expired"),
     }
 
     @app.get("/_test/domain/{kind}")
@@ -51,6 +53,7 @@ def app(app: FastAPI) -> FastAPI:
         ("denied", 403, "permission_denied", "Only the owner can approve"),
         ("invalid", 422, "validation_failed", "Category kind does not match"),
         ("generic", 400, "domain_error", "Something is wrong"),
+        ("unauthorized", 401, "unauthorized", "Token is invalid or expired"),
     ],
 )
 async def test_domain_errors_map_to_status_and_common_format(
@@ -87,3 +90,9 @@ async def test_unexpected_exception_hides_internal_details(client: AsyncClient) 
     assert response.json() == {
         "error": {"code": "internal_error", "message": "Internal server error", "details": None}
     }
+
+
+async def test_authentication_errors_ask_for_a_bearer_token(client: AsyncClient) -> None:
+    response = await client.get("/_test/domain/unauthorized")
+
+    assert response.headers["www-authenticate"] == "Bearer"

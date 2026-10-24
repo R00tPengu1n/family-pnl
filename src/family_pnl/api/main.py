@@ -11,13 +11,14 @@ from fastapi import FastAPI
 
 from family_pnl import __version__
 from family_pnl.api.errors import ErrorResponse, register_error_handlers
-from family_pnl.api.routers import health
+from family_pnl.api.routers import auth, health
+from family_pnl.core.clock import Clock, SystemClock
 from family_pnl.core.config import Settings, get_settings
 from family_pnl.core.db import create_engine, create_session_factory
 from family_pnl.core.logging import configure_logging
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, clock: Clock | None = None) -> FastAPI:
     settings = settings or get_settings()
     # Creating the engine opens no connection; the pool connects on first use.
     engine = create_engine(settings.database_url)
@@ -35,8 +36,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
         responses={"default": {"model": ErrorResponse, "description": "Error"}},
     )
+    app.state.settings = settings
+    app.state.clock = clock or SystemClock()
     app.state.engine = engine
     app.state.session_factory = create_session_factory(engine)
     register_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(auth.router)
     return app

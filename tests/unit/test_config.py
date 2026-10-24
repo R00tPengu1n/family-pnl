@@ -1,9 +1,12 @@
+from datetime import timedelta
+
 import pytest
 from pydantic import ValidationError
 
 from family_pnl.core.config import Environment, Settings, get_settings
 
 DATABASE_URL = "postgresql+asyncpg://app:s3cret@localhost:5432/family_pnl"
+JWT_SECRET = "x" * 32
 
 
 @pytest.fixture(autouse=True)
@@ -16,6 +19,7 @@ def _clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("FAMILY_PNL_DATABASE_URL", DATABASE_URL)
+    monkeypatch.setenv("FAMILY_PNL_JWT_SECRET", JWT_SECRET)
 
 
 def test_defaults_are_safe_for_local_development() -> None:
@@ -83,3 +87,25 @@ def test_get_settings_reads_the_environment_once() -> None:
         assert first.database_url.get_secret_value() == DATABASE_URL
     finally:
         get_settings.cache_clear()
+
+
+def test_token_lifetimes_default_to_the_spec() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.access_token_ttl == timedelta(minutes=15)
+    assert settings.refresh_token_ttl == timedelta(days=30)
+
+
+def test_jwt_secret_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FAMILY_PNL_JWT_SECRET")
+
+    with pytest.raises(ValidationError, match="jwt_secret"):
+        Settings(_env_file=None)
+
+
+def test_short_jwt_secret_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    # HS256 needs a key at least as long as its 256-bit output.
+    monkeypatch.setenv("FAMILY_PNL_JWT_SECRET", "x" * 31)
+
+    with pytest.raises(ValidationError, match="32"):
+        Settings(_env_file=None)

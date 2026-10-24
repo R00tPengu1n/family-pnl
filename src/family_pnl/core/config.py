@@ -1,11 +1,12 @@
 """Application settings read from environment variables (prefix `FAMILY_PNL_`) and `.env`."""
 
+from datetime import timedelta
 from enum import StrEnum
 from functools import lru_cache
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -31,6 +32,18 @@ class Settings(BaseSettings):
     default_timezone: str = "Europe/Minsk"
     # Contains the password, hence SecretStr: hidden in repr and logs.
     database_url: SecretStr
+    # HS256 signing key; at least 32 characters (the length of its 256-bit output).
+    jwt_secret: SecretStr
+    access_token_ttl_minutes: int = Field(default=15, ge=1)
+    refresh_token_ttl_days: int = Field(default=30, ge=1)
+
+    @property
+    def access_token_ttl(self) -> timedelta:
+        return timedelta(minutes=self.access_token_ttl_minutes)
+
+    @property
+    def refresh_token_ttl(self) -> timedelta:
+        return timedelta(days=self.refresh_token_ttl_days)
 
     @field_validator("log_level", mode="before")
     @classmethod
@@ -51,6 +64,13 @@ class Settings(BaseSettings):
     def _asyncpg_url(cls, value: SecretStr) -> SecretStr:
         if not value.get_secret_value().startswith("postgresql+asyncpg://"):
             raise ValueError("database_url must start with postgresql+asyncpg://")
+        return value
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def _long_enough(cls, value: SecretStr) -> SecretStr:
+        if len(value.get_secret_value()) < 32:
+            raise ValueError("jwt_secret must have at least 32 characters")
         return value
 
 

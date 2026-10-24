@@ -25,6 +25,12 @@ class ConflictError(DomainError):
     code = "conflict"
 
 
+class AuthenticationError(DomainError):
+    """Missing, invalid or expired credentials."""
+
+    code = "unauthorized"
+
+
 class PermissionDeniedError(DomainError):
     code = "permission_denied"
 

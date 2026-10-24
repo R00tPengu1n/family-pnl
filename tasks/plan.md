@@ -54,7 +54,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 - [ ] `scripts/check.ps1` green locally, CI green on `main`
 
 ### Phase 1: identity
-- [ ] Task 4: Registration and login (user, household, owner role, JWT)
+- [x] Task 4: Registration and login (user, household, owner role, JWT)
 - [ ] Task 5: Refresh token rotation and logout
 - [ ] Task 6: Login rate limiting in Redis
 - [ ] Task 7: Invites, members list and the isolation test helper
