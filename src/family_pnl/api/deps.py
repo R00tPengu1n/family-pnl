@@ -125,8 +125,9 @@ def get_category_service(
 def get_operation_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     clock: Annotated[Clock, Depends(get_clock)],
+    rates: Annotated[RateService, Depends(get_rate_service)],
 ) -> OperationService:
-    return OperationService(session, clock)
+    return OperationService(session, clock, rates)
 
 
 def get_client_ip(request: Request) -> str:

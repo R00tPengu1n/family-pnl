@@ -32,10 +32,17 @@ class OperationCreate(BaseModel):
     )
 
     type: OperationType
-    amount: Amount
-    currency: Currency
-    account_id: uuid.UUID
-    category_id: uuid.UUID
+    amount: Amount = Field(description="For a transfer: in the source account currency")
+    account_id: uuid.UUID = Field(description="For a transfer: the source account")
+    currency: Currency | None = Field(
+        default=None, description="Required for income and expense; a transfer uses the account's"
+    )
+    category_id: uuid.UUID | None = Field(default=None, description="Not for transfers")
+    target_account_id: uuid.UUID | None = Field(default=None, description="Transfers only")
+    target_amount: Amount | None = Field(
+        default=None,
+        description="Transfers between currencies; converted at the date's rate if omitted",
+    )
     operation_date: date | None = Field(
         default=None, description="Defaults to today in the household time zone"
     )
@@ -51,6 +58,7 @@ class OperationUpdate(BaseModel):
     currency: Currency | None = None
     account_id: uuid.UUID | None = None
     category_id: uuid.UUID | None = None
+    target_amount: Amount | None = None
     operation_date: date | None = None
     comment: Comment | None = None
 
@@ -62,7 +70,10 @@ class OperationOut(BaseModel):
     currency: Currency
     operation_date: date
     account_id: uuid.UUID
-    category_id: uuid.UUID
+    category_id: uuid.UUID | None
+    target_account_id: uuid.UUID | None
+    target_amount: Decimal | None
+    target_currency: Currency | None
     comment: str | None
     author_id: uuid.UUID | None
     created_at: datetime
@@ -78,6 +89,9 @@ class OperationOut(BaseModel):
             operation_date=operation.operation_date,
             account_id=operation.account_id,
             category_id=operation.category_id,
+            target_account_id=operation.target_account_id,
+            target_amount=operation.target_amount,
+            target_currency=operation.target_currency,
             comment=operation.comment,
             author_id=operation.author_id,
             created_at=operation.created_at,
