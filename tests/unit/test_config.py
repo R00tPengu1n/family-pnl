@@ -109,3 +109,23 @@ def test_short_jwt_secret_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ValidationError, match="32"):
         Settings(_env_file=None)
+
+
+def test_login_rate_limit_defaults_to_5_failures_per_15_minutes() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.login_max_failures == 5
+    assert settings.login_failure_window == timedelta(minutes=15)
+
+
+def test_redis_url_defaults_to_the_local_dev_instance() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.redis_url.get_secret_value() == "redis://127.0.0.1:6379/0"
+
+
+def test_redis_url_must_use_a_redis_scheme(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAMILY_PNL_REDIS_URL", "http://127.0.0.1:6379/0")
+
+    with pytest.raises(ValidationError, match="redis://"):
+        Settings(_env_file=None)

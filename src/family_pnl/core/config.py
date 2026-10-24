@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr
     access_token_ttl_minutes: int = Field(default=15, ge=1)
     refresh_token_ttl_days: int = Field(default=30, ge=1)
+    # May contain a password, hence SecretStr.
+    redis_url: SecretStr = SecretStr("redis://127.0.0.1:6379/0")
+    login_max_failures: int = Field(default=5, ge=1)
+    login_failure_window_seconds: int = Field(default=15 * 60, ge=1)
 
     @property
     def access_token_ttl(self) -> timedelta:
@@ -44,6 +48,10 @@ class Settings(BaseSettings):
     @property
     def refresh_token_ttl(self) -> timedelta:
         return timedelta(days=self.refresh_token_ttl_days)
+
+    @property
+    def login_failure_window(self) -> timedelta:
+        return timedelta(seconds=self.login_failure_window_seconds)
 
     @field_validator("log_level", mode="before")
     @classmethod
@@ -64,6 +72,13 @@ class Settings(BaseSettings):
     def _asyncpg_url(cls, value: SecretStr) -> SecretStr:
         if not value.get_secret_value().startswith("postgresql+asyncpg://"):
             raise ValueError("database_url must start with postgresql+asyncpg://")
+        return value
+
+    @field_validator("redis_url")
+    @classmethod
+    def _redis_scheme(cls, value: SecretStr) -> SecretStr:
+        if not value.get_secret_value().startswith(("redis://", "rediss://")):
+            raise ValueError("redis_url must start with redis:// or rediss://")
         return value
 
     @field_validator("jwt_secret")

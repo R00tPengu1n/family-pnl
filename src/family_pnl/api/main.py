@@ -16,18 +16,21 @@ from family_pnl.core.clock import Clock, SystemClock
 from family_pnl.core.config import Settings, get_settings
 from family_pnl.core.db import create_engine, create_session_factory
 from family_pnl.core.logging import configure_logging
+from family_pnl.core.redis import create_redis
 
 
 def create_app(settings: Settings | None = None, clock: Clock | None = None) -> FastAPI:
     settings = settings or get_settings()
     # Creating the engine opens no connection; the pool connects on first use.
     engine = create_engine(settings.database_url)
+    redis = create_redis(settings.redis_url)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         configure_logging(settings.log_level, json_output=settings.log_json)
         yield
         await engine.dispose()
+        await redis.aclose()
 
     app = FastAPI(
         title="Family P&L API",
@@ -39,6 +42,7 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
     app.state.settings = settings
     app.state.clock = clock or SystemClock()
     app.state.engine = engine
+    app.state.redis = redis
     app.state.session_factory = create_session_factory(engine)
     register_error_handlers(app)
     app.include_router(health.router)

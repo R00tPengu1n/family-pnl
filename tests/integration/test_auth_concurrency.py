@@ -18,17 +18,19 @@ from family_pnl.core.security import hash_refresh_token
 from family_pnl.models import Household, User
 from family_pnl.repositories.identity import RefreshTokenRepository
 from family_pnl.services.auth import AuthService, CurrentUser
+from family_pnl.services.rate_limit import LoginRateLimiter
 
 PASSWORD = "correct horse battery"
+IP = "192.0.2.10"
 
 
 @pytest.fixture
 async def committed_user(
-    engine: AsyncEngine, clock: FrozenClock, settings: Settings
+    engine: AsyncEngine, clock: FrozenClock, settings: Settings, login_limiter: LoginRateLimiter
 ) -> AsyncIterator[CurrentUser]:
     sessions = create_session_factory(engine)
     async with sessions() as session:
-        user = await AuthService(session, clock, settings).register(
+        user = await AuthService(session, clock, settings, login_limiter).register(
             "concurrent@example.com", PASSWORD, "Family"
         )
     yield user
@@ -39,11 +41,17 @@ async def committed_user(
 
 
 async def test_a_refresh_in_progress_blocks_a_second_refresh_of_the_same_token(
-    engine: AsyncEngine, clock: FrozenClock, settings: Settings, committed_user: CurrentUser
+    engine: AsyncEngine,
+    clock: FrozenClock,
+    settings: Settings,
+    login_limiter: LoginRateLimiter,
+    committed_user: CurrentUser,
 ) -> None:
     sessions = create_session_factory(engine)
     async with sessions() as session:
-        tokens = await AuthService(session, clock, settings).login(committed_user.email, PASSWORD)
+        tokens = await AuthService(session, clock, settings, login_limiter).login(
+            committed_user.email, PASSWORD, ip=IP
+        )
     token_hash = hash_refresh_token(tokens.refresh_token)
 
     async with sessions() as first, sessions() as second:

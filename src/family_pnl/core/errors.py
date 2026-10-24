@@ -39,3 +39,13 @@ class ValidationFailedError(DomainError):
     """Input is well-formed but violates a business rule."""
 
     code = "validation_failed"
+
+
+class RateLimitedError(DomainError):
+    """Too many attempts; the client may retry after `retry_after` seconds."""
+
+    code = "too_many_attempts"
+
+    def __init__(self, message: str, *, retry_after: int) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after

@@ -10,17 +10,20 @@ from family_pnl.core.errors import AuthenticationError
 from family_pnl.models import User
 from family_pnl.repositories.identity import UserRepository
 from family_pnl.services.auth import AuthService, EmailTakenError
+from family_pnl.services.rate_limit import LoginRateLimiter
 
 PASSWORD = "correct horse battery"
+IP = "192.0.2.10"
 
 
 async def test_concurrent_registration_with_one_email_is_a_conflict(
     db_session: AsyncSession,
     clock: FrozenClock,
     settings: Settings,
+    login_limiter: LoginRateLimiter,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    service = AuthService(db_session, clock, settings)
+    service = AuthService(db_session, clock, settings, login_limiter)
     await service.register("anna@example.com", PASSWORD, "Family")
 
     # The second request passed the existence check before the first one committed.
@@ -34,11 +37,14 @@ async def test_concurrent_registration_with_one_email_is_a_conflict(
 
 
 async def test_token_of_a_deleted_user_is_rejected(
-    db_session: AsyncSession, clock: FrozenClock, settings: Settings
+    db_session: AsyncSession,
+    clock: FrozenClock,
+    settings: Settings,
+    login_limiter: LoginRateLimiter,
 ) -> None:
-    service = AuthService(db_session, clock, settings)
+    service = AuthService(db_session, clock, settings, login_limiter)
     user = await service.register("anna@example.com", PASSWORD, "Family")
-    tokens = await service.login("anna@example.com", PASSWORD)
+    tokens = await service.login("anna@example.com", PASSWORD, ip=IP)
     await db_session.execute(delete(User).where(User.id == user.id))
 
     with pytest.raises(AuthenticationError):

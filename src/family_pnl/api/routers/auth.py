@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Response, status
 
-from family_pnl.api.deps import AuthServiceDep, CurrentUserDep
+from family_pnl.api.deps import AuthServiceDep, ClientIpDep, CurrentUserDep
 from family_pnl.api.errors import ErrorResponse
 from family_pnl.api.schemas.auth import (
     LoginRequest,
@@ -27,10 +27,16 @@ async def register(body: RegisterRequest, auth: AuthServiceDep) -> MeResponse:
 @router.post(
     "/auth/login",
     summary="Exchange email and password for an access and a refresh token",
-    responses={status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse}},
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "model": ErrorResponse,
+            "description": "5 failed attempts per email or per IP within 15 minutes",
+        },
+    },
 )
-async def login(body: LoginRequest, auth: AuthServiceDep) -> TokenResponse:
-    return TokenResponse.of(await auth.login(body.email, body.password))
+async def login(body: LoginRequest, auth: AuthServiceDep, ip: ClientIpDep) -> TokenResponse:
+    return TokenResponse.of(await auth.login(body.email, body.password, ip=ip))
 
 
 @router.post(
