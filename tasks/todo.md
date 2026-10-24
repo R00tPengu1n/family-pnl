@@ -390,12 +390,12 @@ a budget.
 set/change limits and approve (owner only), enforcing the window rules via the clock.
 
 **Acceptance criteria:**
-- [ ] Inside the window any member edits the draft; only the owner approves
-- [ ] Outside the window and during the approved month only the owner can change it
-- [ ] Limits only for expense categories of the same household
+- [x] Inside the window any member edits the draft; only the owner approves
+- [x] Outside the window and during the approved month only the owner can change it
+- [x] Limits only for expense categories of the same household
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_budgets.py`
+- [x] `uv run pytest tests/integration/test_budgets.py`
 
 **Dependencies:** Tasks 13, 17
 **Files likely touched:** `models/budgets.py`, `repositories/budgets.py`,

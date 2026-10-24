@@ -19,6 +19,7 @@ from family_pnl.core.security import (
     new_refresh_token,
     verify_password_or_dummy,
 )
+from family_pnl.domain.currency import Currency
 from family_pnl.domain.identity import Role, check_password_policy, normalize_email
 from family_pnl.models import Category, Household, Membership, RefreshToken, User
 from family_pnl.repositories.identity import (
@@ -54,6 +55,7 @@ class CurrentUser:
     household_id: uuid.UUID
     household_name: str
     household_timezone: str
+    household_base_currency: Currency
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,4 +202,5 @@ def _current_user(user: User, membership: Membership, household: Household) -> C
         household_id=household.id,
         household_name=household.name,
         household_timezone=household.timezone,
+        household_base_currency=household.base_currency,
     )

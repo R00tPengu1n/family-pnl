@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
 
+from family_pnl.domain.currency import Currency
 from family_pnl.domain.identity import MAX_PASSWORD_LENGTH, Role
 from family_pnl.services.auth import CurrentUser, TokenPair
 
@@ -68,6 +69,7 @@ class HouseholdOut(BaseModel):
     id: uuid.UUID
     name: str
     timezone: str
+    base_currency: Currency
 
 
 class MeResponse(BaseModel):
@@ -87,6 +89,9 @@ class MeResponse(BaseModel):
             telegram_linked=user.telegram_linked,
             role=user.role,
             household=HouseholdOut(
-                id=user.household_id, name=user.household_name, timezone=user.household_timezone
+                id=user.household_id,
+                name=user.household_name,
+                timezone=user.household_timezone,
+                base_currency=user.household_base_currency,
             ),
         )

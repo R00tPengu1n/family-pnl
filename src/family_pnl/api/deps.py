@@ -16,6 +16,7 @@ from family_pnl.integrations.nbrb import NbrbClient
 from family_pnl.services.accounts import AccountService
 from family_pnl.services.auth import AuthService, CurrentUser
 from family_pnl.services.balances import BalanceService
+from family_pnl.services.budgets import BudgetService
 from family_pnl.services.categories import CategoryService
 from family_pnl.services.fx import RateService, RateSource
 from family_pnl.services.households import HouseholdService
@@ -138,6 +139,14 @@ def get_balance_service(
     return BalanceService(session, rates)
 
 
+def get_budget_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    clock: Annotated[Clock, Depends(get_clock)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> BudgetService:
+    return BudgetService(session, clock, settings)
+
+
 def get_client_ip(request: Request) -> str:
     # The direct peer. Behind a reverse proxy uvicorn's --proxy-headers sets it (Task 35).
     return request.client.host if request.client is not None else "unknown"
@@ -163,3 +172,4 @@ AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]
 CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
 OperationServiceDep = Annotated[OperationService, Depends(get_operation_service)]
 BalanceServiceDep = Annotated[BalanceService, Depends(get_balance_service)]
+BudgetServiceDep = Annotated[BudgetService, Depends(get_budget_service)]
