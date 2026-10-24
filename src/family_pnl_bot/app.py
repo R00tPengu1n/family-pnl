@@ -5,16 +5,20 @@ from aiogram import Bot, Dispatcher
 
 from family_pnl_bot.api_client import ApiClient
 from family_pnl_bot.config import BotSettings
-from family_pnl_bot.handlers import start
+from family_pnl_bot.handlers import quick_entry, start
+from family_pnl_bot.quick_entry import QuickEntry
 from family_pnl_bot.throttle import AttemptLimiter
 
 
 def build_dispatcher(api: ApiClient, link_limiter: AttemptLimiter) -> Dispatcher:
-    """Routers plus the objects handlers receive by name (`api`, `link_limiter`)."""
+    """Routers plus the objects handlers receive by name (`api`, `link_limiter`, ...)."""
     dispatcher = Dispatcher()
+    # Commands first: quick entry takes every other text message.
     dispatcher.include_router(start.build_router())
+    dispatcher.include_router(quick_entry.build_router())
     dispatcher["api"] = api
     dispatcher["link_limiter"] = link_limiter
+    dispatcher["quick_entry"] = QuickEntry(api)
     return dispatcher
 
 

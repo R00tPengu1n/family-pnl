@@ -619,12 +619,12 @@ buttons; account chosen by default rule or buttons; create the operation through
 confirm with an "undo" button.
 
 **Acceptance criteria:**
-- [ ] Exact category match creates the operation in one message
-- [ ] No match → buttons; selection creates the operation
-- [ ] Undo deletes the operation via the API
+- [x] Exact category match creates the operation in one message
+- [x] No match → buttons; selection creates the operation
+- [x] Undo deletes the operation via the API
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/bot/test_quick_entry.py` (mocked API client)
+- [x] `uv run pytest tests/unit/test_bot_quick_entry.py` (mocked API client) and `tests/integration/bot/test_bot_wiring.py` (through the dispatcher)
 
 **Dependencies:** Tasks 20, 28
 **Files likely touched:** `handlers/quick_entry.py`, `keyboards.py`, `api_client.py`, tests

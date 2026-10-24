@@ -28,7 +28,9 @@ class Telegram:
     """A dispatcher fed with updates; what the bot sent is recorded instead of posted."""
 
     feed: Callable[[str, int | None], Awaitable[None]]
+    press: Callable[[str, bool], Awaitable[None]]
     sent: list[str]
+    buttons: list[list[str]]  # callback data of the last keyboard the bot sent
     dispatcher: Any
 
 
@@ -36,21 +38,26 @@ class Telegram:
 def telegram(api: ApiClient) -> Telegram:
     from aiogram import Bot
     from aiogram.client.session.base import BaseSession
-    from aiogram.methods import SendMessage
-    from aiogram.types import Chat, Message, Update, User
+    from aiogram.methods import AnswerCallbackQuery, EditMessageText, SendMessage
+    from aiogram.types import CallbackQuery, Chat, Message, Update, User
 
     from family_pnl_bot.app import build_dispatcher
 
     sent: list[str] = []
+    buttons: list[list[str]] = []
 
     class RecordingSession(BaseSession):
         async def make_request(self, bot: Bot, method: Any, **_: Any) -> Any:
-            assert isinstance(method, SendMessage)
+            if isinstance(method, AnswerCallbackQuery):
+                return True
+            assert isinstance(method, SendMessage | EditMessageText)
             sent.append(method.text)
+            keyboard = method.reply_markup.inline_keyboard if method.reply_markup else []
+            buttons[:] = [[button.callback_data for button in row] for row in keyboard]
             return Message(
                 message_id=2,
                 date=datetime.now(UTC),
-                chat=Chat(id=int(method.chat_id), type="private"),
+                chat=Chat(id=ANNA, type="private"),
                 text=method.text,
             )
 
@@ -75,7 +82,21 @@ def telegram(api: ApiClient) -> Telegram:
         )
         await dispatcher.feed_update(bot, Update(update_id=1, message=message))
 
-    return Telegram(feed, sent, dispatcher)
+    async def press(data: str, on_message: bool = True) -> None:
+        # Telegram leaves out the message when it is too old for the bot to see.
+        shown = Message(
+            message_id=2, date=datetime.now(UTC), chat=Chat(id=ANNA, type="private"), text="?"
+        )
+        callback = CallbackQuery(
+            id="1",
+            from_user=User(id=ANNA, is_bot=False, first_name="Анна"),
+            chat_instance="chat",
+            data=data,
+            message=shown if on_message else None,
+        )
+        await dispatcher.feed_update(bot, Update(update_id=2, callback_query=callback))
+
+    return Telegram(feed, press, sent, buttons, dispatcher)
 
 
 async def test_commands_reach_their_handlers_with_their_dependencies(
@@ -86,7 +107,7 @@ async def test_commands_reach_their_handlers_with_their_dependencies(
 
     assert telegram.sent == [messages.created("Family"), messages.LINK_USAGE]
     assert (await api.me(ANNA)).display_name == "Анна"
-    assert [router.name for router in telegram.dispatcher.sub_routers] == ["start"]
+    assert [router.name for router in telegram.dispatcher.sub_routers] == ["start", "quick_entry"]
 
 
 async def test_the_command_argument_reaches_the_reply(telegram: Telegram) -> None:
@@ -98,6 +119,7 @@ async def test_the_command_argument_reaches_the_reply(telegram: Telegram) -> Non
 async def test_messages_without_a_sender_get_no_answer(telegram: Telegram) -> None:
     await telegram.feed("/start", None)
     await telegram.feed("/link CODE", None)
+    await telegram.feed("кофе 5", None)
 
     assert telegram.sent == []
 
@@ -137,3 +159,56 @@ def test_running_the_package_starts_main(monkeypatch: pytest.MonkeyPatch) -> Non
     runpy.run_module("family_pnl_bot", run_name="__main__")
 
     assert started == [True]
+
+
+async def card_for(api: ApiClient) -> None:
+    await api.request(
+        ANNA, "POST", "/accounts", json={"name": "Card", "type": "card", "currency": "RUB"}
+    )
+
+
+async def test_a_quick_entry_is_recorded_and_undone_with_its_button(
+    telegram: Telegram, api: ApiClient
+) -> None:
+    await telegram.feed("/start", ANNA)
+    await card_for(api)
+
+    await telegram.feed("продукты 5", ANNA)
+    [[undo]] = telegram.buttons
+    await telegram.press(undo)
+
+    assert telegram.sent[1:] == [
+        "Расход 5.00 RUB записан: «Продукты», счёт «Card».",
+        "Запись отменена.",
+    ]
+    assert telegram.buttons == []
+    assert (await api.request(ANNA, "GET", "/operations"))["items"] == []
+
+
+async def test_a_category_chosen_with_a_button_records_the_entry(
+    telegram: Telegram, api: ApiClient
+) -> None:
+    await telegram.feed("/start", ANNA)
+    await card_for(api)
+
+    await telegram.feed("кофе 5", ANNA)
+    first = telegram.buttons[0][0]
+    await telegram.press(first)
+
+    assert telegram.sent[1] == "Какая категория?"
+    assert telegram.sent[2].startswith("Расход 5.00 RUB записан")
+    assert len((await api.request(ANNA, "GET", "/operations"))["items"]) == 1
+
+
+async def test_a_button_on_a_message_out_of_reach_still_acts(
+    telegram: Telegram, api: ApiClient
+) -> None:
+    await telegram.feed("/start", ANNA)
+    await card_for(api)
+    await telegram.feed("продукты 5", ANNA)
+    [[undo]] = telegram.buttons
+
+    await telegram.press(undo, False)
+
+    assert len(telegram.sent) == 2  # nothing to edit, the press is only acknowledged
+    assert (await api.request(ANNA, "GET", "/operations"))["items"] == []
