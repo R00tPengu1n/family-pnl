@@ -60,6 +60,10 @@ class HouseholdRepository:
         ).one_or_none()
         return None if row is None else (row[0], row[1])
 
+    async def all(self) -> list[Household]:
+        """Every household: for jobs that run per household (budget reminders)."""
+        return list(await self._session.scalars(select(Household).order_by(Household.id)))
+
     async def count_members(self, household_id: uuid.UUID) -> int:
         count = await self._session.scalar(
             select(func.count())

@@ -6,6 +6,7 @@ from typing import cast
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from family_pnl.domain.budgets import BudgetStatus
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.ledger import OperationType
 from family_pnl.models import Budget, BudgetLimit, Category, Operation
@@ -19,6 +20,17 @@ class BudgetRepository:
         return await self._session.scalar(
             select(Budget).where(Budget.household_id == household_id, Budget.month == month)
         )
+
+    async def approved_months(self, household_id: uuid.UUID, months: list[date]) -> frozenset[date]:
+        """Which of `months` have an approved budget."""
+        found = await self._session.scalars(
+            select(Budget.month).where(
+                Budget.household_id == household_id,
+                Budget.month.in_(months),
+                Budget.status == BudgetStatus.APPROVED,
+            )
+        )
+        return frozenset(found)
 
     def add(self, item: Budget | BudgetLimit) -> None:
         self._session.add(item)

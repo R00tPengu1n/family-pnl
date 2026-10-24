@@ -552,12 +552,12 @@ approved inside the window, remind the owner; after the window ends, mark the bu
 not approved and keep reminding.
 
 **Acceptance criteria:**
-- [ ] With a fake clock: no reminder before day 20, one reminder per day from day 20,
+- [x] With a fake clock: no reminder before day 20, one reminder per day from day 20,
       none after approval
-- [ ] After the window ends the budget is marked not approved and reminders continue
+- [x] After the window ends the budget is marked not approved and reminders continue
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/worker/test_budget_reminders.py`
+- [x] `uv run pytest tests/integration/worker/test_budget_reminders.py`
 
 **Dependencies:** Task 25
 **Files likely touched:** `worker/jobs/budgets.py`, `services/budgets.py`, migration (flag), tests

@@ -12,6 +12,7 @@ from arq.cron import cron
 
 from family_pnl.core.config import Settings, get_settings
 from family_pnl.worker.context import shutdown, startup
+from family_pnl.worker.jobs.budgets import send_budget_reminders
 from family_pnl.worker.jobs.fx import refresh_rates
 from family_pnl.worker.jobs.notifications import deliver_notifications
 
@@ -27,6 +28,8 @@ def worker_settings(settings: Settings) -> dict[str, Any]:
         "cron_jobs": [
             cron(refresh_rates, hour={21, 6}, minute=10, unique=True),
             cron(deliver_notifications, second=0, unique=True),  # every minute
+            # Hourly, because households live in different time zones (09:00 local).
+            cron(send_budget_reminders, minute=5, unique=True),
         ],
     }
 
