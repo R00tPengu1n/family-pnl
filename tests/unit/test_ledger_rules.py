@@ -2,14 +2,17 @@ import uuid
 
 import pytest
 
-from family_pnl.core.errors import PermissionDeniedError
+from family_pnl.core.errors import PermissionDeniedError, ValidationFailedError
 from family_pnl.domain.identity import Role
 from family_pnl.domain.ledger import (
     DEFAULT_CATEGORIES,
     AccountType,
     CategoryKind,
+    OperationType,
     category_key,
+    check_category_fits,
     require_category_editor,
+    require_operation_editor,
 )
 
 ANNA = uuid.uuid4()
@@ -76,4 +79,53 @@ def test_who_may_change_a_category(
             require_category_editor(actor_id=actor, role=role, created_by=created_by)
         assert (
             info.value.message == "Only its author or the household owner can change this category"
+        )
+
+
+@pytest.mark.parametrize(
+    ("operation", "kind"),
+    [(OperationType.EXPENSE, CategoryKind.EXPENSE), (OperationType.INCOME, CategoryKind.INCOME)],
+)
+def test_a_category_of_the_same_kind_fits(operation: OperationType, kind: CategoryKind) -> None:
+    check_category_fits(operation, kind)
+
+
+@pytest.mark.parametrize(
+    ("operation", "kind"),
+    [(OperationType.EXPENSE, CategoryKind.INCOME), (OperationType.INCOME, CategoryKind.EXPENSE)],
+)
+def test_a_category_of_the_other_kind_does_not_fit(
+    operation: OperationType, kind: CategoryKind
+) -> None:
+    with pytest.raises(ValidationFailedError) as info:
+        check_category_fits(operation, kind)
+
+    assert info.value.code == "category_kind_mismatch"
+    assert info.value.message == f"A {kind} category cannot be used for an {operation}"
+
+
+def test_operation_types_have_stable_values() -> None:
+    assert [t.value for t in OperationType] == ["income", "expense"]
+
+
+@pytest.mark.parametrize(
+    ("actor", "role", "author", "allowed"),
+    [
+        (ANNA, Role.MEMBER, ANNA, True),
+        (IVAN, Role.MEMBER, ANNA, False),
+        (IVAN, Role.OWNER, ANNA, True),
+        (ANNA, Role.MEMBER, None, False),  # the author left the household
+    ],
+    ids=["author", "other-member", "owner", "author-gone"],
+)
+def test_who_may_change_an_operation(
+    actor: uuid.UUID, role: Role, author: uuid.UUID | None, allowed: bool
+) -> None:
+    if allowed:
+        require_operation_editor(actor_id=actor, role=role, author_id=author)
+    else:
+        with pytest.raises(PermissionDeniedError) as info:
+            require_operation_editor(actor_id=actor, role=role, author_id=author)
+        assert info.value.message == (
+            "Only its author or the household owner can change this operation"
         )

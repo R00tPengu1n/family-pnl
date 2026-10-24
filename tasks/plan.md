@@ -76,7 +76,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 ### Phase 3: ledger
 - [x] Task 12: Accounts with personal/shared permissions
 - [x] Task 13: Categories with a default set per household
-- [ ] Task 14: Income and expense operations (CRUD, author/owner permissions)
+- [x] Task 14: Income and expense operations (CRUD, author/owner permissions)
 - [ ] Task 15: Transfers between accounts with currency conversion
 - [ ] Task 16: Account balances, operation filters and pagination
 

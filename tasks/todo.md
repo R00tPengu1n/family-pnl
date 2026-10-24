@@ -309,12 +309,12 @@ category, account, comment, author, timestamps) and endpoints to create, read, e
 delete. Original amount and currency are kept; category kind must match the type.
 
 **Acceptance criteria:**
-- [ ] Only the author or the owner can edit or delete (403 otherwise); foreign → 404
-- [ ] Amount must be positive with at most 2 decimals; currency may differ from the account's
-- [ ] Operation date is a calendar date in the household time zone
+- [x] Only the author or the owner can edit or delete (403 otherwise); foreign → 404
+- [x] Amount must be positive with at most 2 decimals; currency may differ from the account's
+- [x] Operation date is a calendar date in the household time zone
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_operations.py`
+- [x] `uv run pytest tests/integration/test_operations.py`
 
 **Dependencies:** Tasks 11, 12, 13
 **Files likely touched:** `models/ledger.py`, `repositories/operations.py`,
