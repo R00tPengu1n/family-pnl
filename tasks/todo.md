@@ -75,7 +75,7 @@ Record the first measured coverage in `CONSTRAINTS.md` (Measured, not yet enforc
 **Acceptance criteria:**
 - [x] Workflow runs on PRs into `main` and on pushes to `main`
 - [x] Every row of `CONSTRAINTS.md` marked "CI" fails the job when violated
-- [ ] Branch protection on `main` requires the CI check (owner enables it in GitHub settings)
+- [x] Branch protection on `main` requires the CI check (enabled 2026-10-24: six required checks, no force push or deletion, admins included)
 
 **Verification:**
 - [x] The PR for this task shows a green CI run
