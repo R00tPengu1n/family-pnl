@@ -231,6 +231,7 @@ async def test_bot_endpoints_are_off_without_a_configured_secret(settings: Setti
     finally:
         await app.state.engine.dispose()
         await app.state.redis.aclose()
+        await app.state.nbrb_http.aclose()
 
     assert response.status_code == 401
 

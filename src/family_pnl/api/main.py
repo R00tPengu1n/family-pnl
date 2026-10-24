@@ -11,12 +11,13 @@ from fastapi import FastAPI
 
 from family_pnl import __version__
 from family_pnl.api.errors import ErrorResponse, register_error_handlers
-from family_pnl.api.routers import auth, bot, health, household
+from family_pnl.api.routers import auth, bot, fx, health, household
 from family_pnl.core.clock import Clock, SystemClock
 from family_pnl.core.config import Settings, get_settings
 from family_pnl.core.db import create_engine, create_session_factory
 from family_pnl.core.logging import configure_logging
 from family_pnl.core.redis import create_redis
+from family_pnl.integrations.nbrb import create_http_client
 
 
 def create_app(settings: Settings | None = None, clock: Clock | None = None) -> FastAPI:
@@ -24,6 +25,7 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
     # Creating the engine opens no connection; the pool connects on first use.
     engine = create_engine(settings.database_url)
     redis = create_redis(settings.redis_url)
+    nbrb_http = create_http_client(settings.nbrb_base_url)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -31,6 +33,7 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
         yield
         await engine.dispose()
         await redis.aclose()
+        await nbrb_http.aclose()
 
     app = FastAPI(
         title="Family P&L API",
@@ -43,10 +46,12 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
     app.state.clock = clock or SystemClock()
     app.state.engine = engine
     app.state.redis = redis
+    app.state.nbrb_http = nbrb_http
     app.state.session_factory = create_session_factory(engine)
     register_error_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(household.router)
     app.include_router(bot.router)
+    app.include_router(fx.router)
     return app
