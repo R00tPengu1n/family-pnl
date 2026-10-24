@@ -66,13 +66,13 @@ blocked, so `check.ps1` runs every tool as `python -m <tool>` from `.venv`.
 
 ## Measured, not yet enforced
 
-Recorded after the first CI run with code (Task 3); after that each value must not fall
-by more than 0.5 percentage points.
+Each value must not fall by more than 0.5 percentage points; when it improves, the new
+value is recorded here.
 
 | Metric | Today | Direction |
 |---|---|---|
-| Project coverage | not measured yet | must not fall |
-| Mutation score (domain) | not measured yet | must not fall |
+| Project coverage | 100.00% (2026-10-24, Task 3) | must not fall |
+| Mutation score (domain) | not measured yet: first domain code arrives in Task 9 | must not fall |
 
 ## Exceptions
 
