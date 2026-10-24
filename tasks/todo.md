@@ -373,11 +373,11 @@ window for the next month is open and its bounds. Plus the permission rules for 
 a budget.
 
 **Acceptance criteria:**
-- [ ] Correct for 28, 29, 30 and 31-day months and for UTC/Minsk midnight edges
-- [ ] Permission matrix (member/owner × in/outside window × draft/approved) is tested
+- [x] Correct for 28, 29, 30 and 31-day months and for UTC/Minsk midnight edges
+- [x] Permission matrix (member/owner × in/outside window × draft/approved) is tested
 
 **Verification:**
-- [ ] `uv run pytest tests/unit/test_budget_window.py`
+- [x] `uv run pytest tests/unit/test_budget_window.py`
 
 **Dependencies:** Task 1
 **Files likely touched:** `domain/budget_window.py`, `domain/permissions.py`, tests
