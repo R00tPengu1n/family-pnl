@@ -18,11 +18,8 @@ from family_pnl.core.clock import Clock
 from family_pnl.domain.budgets import first_of_month, next_month, reached_thresholds
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.money import Money
-from family_pnl.repositories.budgets import (
-    BudgetRepository,
-    NotificationRepository,
-    SpendingRepository,
-)
+from family_pnl.repositories.budgets import BudgetRepository, SpendingRepository
+from family_pnl.repositories.notifications import NotificationRepository
 from family_pnl.services.auth import CurrentUser
 from family_pnl.services.fx import RateService, RatesOnDate, RatesUnavailableError
 

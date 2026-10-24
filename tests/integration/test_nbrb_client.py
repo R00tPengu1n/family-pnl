@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from family_pnl.domain.currency import Currency
-from family_pnl.integrations import nbrb
+from family_pnl.integrations import tls
 from family_pnl.integrations.nbrb import NbrbClient, RateSourceUnavailableError, create_http_client
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "nbrb"
@@ -144,8 +144,8 @@ async def test_default_http_client_points_at_nbrb_with_a_short_timeout() -> None
 
 
 def test_clients_share_one_tls_context_that_verifies_certificates() -> None:
-    context = nbrb._tls_context()
+    context = tls.tls_context()
 
-    assert context is nbrb._tls_context()  # built once per process
+    assert context is tls.tls_context()  # built once per process
     assert context.verify_mode == ssl.CERT_REQUIRED
     assert context.check_hostname is True

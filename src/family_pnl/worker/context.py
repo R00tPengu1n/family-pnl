@@ -10,7 +10,7 @@ from family_pnl.core.clock import Clock, SystemClock
 from family_pnl.core.config import Settings, get_settings
 from family_pnl.core.db import create_engine, create_session_factory
 from family_pnl.core.logging import configure_logging
-from family_pnl.integrations.nbrb import create_http_client
+from family_pnl.integrations import nbrb, telegram
 
 CONTEXT_KEY = "family_pnl"
 
@@ -22,10 +22,12 @@ class WorkerContext:
     engine: AsyncEngine
     session_factory: async_sessionmaker[AsyncSession]
     nbrb_http: httpx.AsyncClient
+    telegram_http: httpx.AsyncClient
 
     async def close(self) -> None:
         await self.engine.dispose()
         await self.nbrb_http.aclose()
+        await self.telegram_http.aclose()
 
 
 def build_context(settings: Settings | None = None, clock: Clock | None = None) -> WorkerContext:
@@ -36,7 +38,8 @@ def build_context(settings: Settings | None = None, clock: Clock | None = None) 
         clock=clock or SystemClock(),
         engine=engine,
         session_factory=create_session_factory(engine),
-        nbrb_http=create_http_client(settings.nbrb_base_url),
+        nbrb_http=nbrb.create_http_client(settings.nbrb_base_url),
+        telegram_http=telegram.create_http_client(settings.telegram_api_url),
     )
 
 

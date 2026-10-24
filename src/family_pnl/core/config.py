@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Shared secret of the Telegram bot (X-Bot-Token); bot endpoints are off without it.
     bot_api_secret: SecretStr | None = None
     nbrb_base_url: str = "https://api.nbrb.by"
+    # The bot token sends notifications; without it the worker keeps them waiting.
+    telegram_bot_token: SecretStr | None = None
+    telegram_api_url: str = "https://api.telegram.org"
     # The month's budget is prepared from this day to that day of the month before.
     budget_window_start_day: int = Field(default=20, ge=1, le=31)
     budget_window_end_day: int = Field(default=30, ge=1, le=31)
@@ -93,6 +96,12 @@ class Settings(BaseSettings):
         if value is not None and len(value.get_secret_value()) < 32:
             raise ValueError("secrets must have at least 32 characters")
         return value
+
+    @field_validator("telegram_bot_token", mode="before")
+    @classmethod
+    def _empty_token_is_unset(cls, value: object) -> object:
+        # `FAMILY_PNL_TELEGRAM_BOT_TOKEN=` in .env means "no token yet".
+        return None if value == "" else value
 
 
 @lru_cache

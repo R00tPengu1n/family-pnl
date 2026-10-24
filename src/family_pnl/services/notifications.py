@@ -1,0 +1,106 @@
+"""Delivery of outbox notifications to Telegram (ADR-0009).
+
+One notification at a time, each in its own transaction: the row is locked, sent to every
+recipient, marked sent and committed, so a restart never sends a delivered row again.
+Members without a linked Telegram, and chats that refuse the bot, are skipped with a log
+entry: retrying would not reach them and would repeat the message for everyone else. A
+failure that may pass (network, rate limit, Telegram down) postpones the whole
+notification with a growing delay, until it is given up.
+"""
+
+import uuid
+from datetime import datetime
+
+import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from family_pnl.core.clock import Clock
+from family_pnl.domain.notifications import gives_up, retry_delay, threshold_message
+from family_pnl.integrations.telegram import (
+    TelegramChatUnavailableError,
+    TelegramSender,
+    TelegramSendError,
+)
+from family_pnl.models import Notification, User
+from family_pnl.repositories.identity import HouseholdRepository
+from family_pnl.repositories.ledger import CategoryRepository
+from family_pnl.repositories.notifications import NotificationRepository
+from family_pnl.services.budget_execution import THRESHOLD_KIND
+
+logger = structlog.get_logger(__name__)
+
+
+class NotificationDelivery:
+    def __init__(self, session: AsyncSession, sender: TelegramSender, clock: Clock) -> None:
+        self._session = session
+        self._sender = sender
+        self._clock = clock
+        self._notifications = NotificationRepository(session)
+        self._households = HouseholdRepository(session)
+        self._categories = CategoryRepository(session)
+
+    async def deliver_next(self) -> bool:
+        """Deliver the oldest due notification; False when none is due."""
+        now = self._clock.now()
+        notification = await self._notifications.lock_next_due(now)
+        if notification is None:
+            return False
+        log = logger.bind(notification_id=str(notification.id), kind=notification.kind)
+        text = await self._text(notification)
+        if text is None:
+            log.error("notification_kind_unknown")
+            notification.gave_up_at = now
+            await self._session.commit()
+            return True
+        try:
+            for user in await self._recipients(notification):
+                await self._send(user, text, log)
+        except TelegramSendError as exc:
+            self._postpone(notification, now, str(exc), log)
+        else:
+            notification.attempts += 1
+            notification.sent_at = now
+            log.info("notification_sent")
+        await self._session.commit()
+        return True
+
+    async def _send(self, user: User, text: str, log: structlog.BoundLogger) -> None:
+        if user.telegram_id is None:
+            log.info("notification_recipient_not_linked", user_id=str(user.id))
+            return
+        try:
+            await self._sender.send(user.telegram_id, text)
+        except TelegramChatUnavailableError as exc:
+            log.warning("notification_chat_unavailable", user_id=str(user.id), error=str(exc))
+
+    def _postpone(
+        self, notification: Notification, now: datetime, error: str, log: structlog.BoundLogger
+    ) -> None:
+        notification.attempts += 1
+        if gives_up(notification.attempts):
+            notification.gave_up_at = now
+            log.error("notification_given_up", attempts=notification.attempts, error=error)
+            return
+        notification.next_attempt_at = now + retry_delay(notification.attempts)
+        log.warning("notification_postponed", attempts=notification.attempts, error=error)
+
+    async def _recipients(self, notification: Notification) -> list[User]:
+        # Budget thresholds concern everyone who spends from the budget.
+        members = await self._households.list_members(notification.household_id)
+        return [user for _, user in members]
+
+    async def _text(self, notification: Notification) -> str | None:
+        if notification.kind != THRESHOLD_KIND:
+            return None
+        payload = notification.payload
+        category = await self._categories.get(
+            notification.household_id, uuid.UUID(payload["category_id"])
+        )
+        return threshold_message(
+            month=payload["month"],
+            category=category.name if category else "?",
+            threshold=payload["threshold"],
+            spent=payload["spent"],
+            limit=payload["limit"],
+            currency=payload["currency"],
+        )
