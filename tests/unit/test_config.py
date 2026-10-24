@@ -3,11 +3,22 @@ from pydantic import ValidationError
 
 from family_pnl.core.config import Environment, Settings
 
+DATABASE_URL = "postgresql+asyncpg://app:s3cret@localhost:5432/family_pnl"
 
-def test_defaults_are_safe_for_local_development(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("FAMILY_PNL_ENVIRONMENT", "FAMILY_PNL_LOG_LEVEL", "FAMILY_PNL_LOG_JSON"):
+
+@pytest.fixture(autouse=True)
+def _clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in (
+        "FAMILY_PNL_ENVIRONMENT",
+        "FAMILY_PNL_LOG_LEVEL",
+        "FAMILY_PNL_LOG_JSON",
+        "FAMILY_PNL_DEFAULT_TIMEZONE",
+    ):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("FAMILY_PNL_DATABASE_URL", DATABASE_URL)
 
+
+def test_defaults_are_safe_for_local_development() -> None:
     settings = Settings(_env_file=None)
 
     assert settings.environment is Environment.LOCAL
@@ -40,3 +51,24 @@ def test_unknown_time_zone_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_database_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FAMILY_PNL_DATABASE_URL")
+
+    with pytest.raises(ValidationError, match="database_url"):
+        Settings(_env_file=None)
+
+
+def test_database_url_must_use_the_asyncpg_driver(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAMILY_PNL_DATABASE_URL", "postgresql://app:pw@localhost/family_pnl")
+
+    with pytest.raises(ValidationError, match=r"postgresql\+asyncpg"):
+        Settings(_env_file=None)
+
+
+def test_database_password_is_hidden_in_repr_but_available_to_code() -> None:
+    settings = Settings(_env_file=None)
+
+    assert "s3cret" not in repr(settings)
+    assert settings.database_url.get_secret_value() == DATABASE_URL

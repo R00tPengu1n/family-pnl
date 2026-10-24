@@ -5,6 +5,7 @@ import pytest
 import structlog
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 
 from family_pnl.api.main import create_app
 from family_pnl.core.config import Environment, Settings
@@ -12,7 +13,12 @@ from family_pnl.core.config import Environment, Settings
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(_env_file=None, environment=Environment.TEST, log_json=True)
+    return Settings(
+        _env_file=None,
+        environment=Environment.TEST,
+        log_json=True,
+        database_url=SecretStr("postgresql+asyncpg://test:test@localhost:1/unused"),
+    )
 
 
 @pytest.fixture
