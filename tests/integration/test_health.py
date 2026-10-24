@@ -32,6 +32,7 @@ async def test_health_reports_unavailable_database_with_503(
             response = await http.get("/health")
     finally:
         await app.state.engine.dispose()
+        await app.state.redis.aclose()
 
     assert response.status_code == 503
     assert response.json() == {"status": "unavailable", "database": "unavailable"}
