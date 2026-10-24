@@ -12,6 +12,7 @@ from family_pnl.core.clock import Clock
 from family_pnl.core.config import Settings
 from family_pnl.core.errors import AuthenticationError
 from family_pnl.services.auth import AuthService, CurrentUser
+from family_pnl.services.households import HouseholdService
 from family_pnl.services.rate_limit import LoginRateLimiter
 
 # auto_error=False: a missing header goes through our error format, not FastAPI's 403.
@@ -54,6 +55,13 @@ def get_auth_service(
     return AuthService(session, clock, settings, LoginRateLimiter(redis, settings))
 
 
+def get_household_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    clock: Annotated[Clock, Depends(get_clock)],
+) -> HouseholdService:
+    return HouseholdService(session, clock)
+
+
 def get_client_ip(request: Request) -> str:
     # The direct peer. Behind a reverse proxy uvicorn's --proxy-headers sets it (Task 35).
     return request.client.host if request.client is not None else "unknown"
@@ -71,3 +79,4 @@ async def get_current_user(
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ClientIpDep = Annotated[str, Depends(get_client_ip)]
+HouseholdServiceDep = Annotated[HouseholdService, Depends(get_household_service)]

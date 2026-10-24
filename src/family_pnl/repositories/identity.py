@@ -3,10 +3,10 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from family_pnl.models import Household, Membership, RefreshToken, User
+from family_pnl.models import Household, Invite, Membership, RefreshToken, User
 
 
 class UserRepository:
@@ -42,6 +42,47 @@ class HouseholdRepository:
             )
         ).one_or_none()
         return None if row is None else (row[0], row[1])
+
+    async def count_members(self, household_id: uuid.UUID) -> int:
+        count = await self._session.scalar(
+            select(func.count())
+            .select_from(Membership)
+            .where(Membership.household_id == household_id)
+        )
+        return count or 0
+
+    async def list_members(self, household_id: uuid.UUID) -> list[tuple[Membership, User]]:
+        rows = await self._session.execute(
+            select(Membership, User)
+            .join(User, User.id == Membership.user_id)
+            .where(Membership.household_id == household_id)
+            .order_by(Membership.joined_at, User.email)
+        )
+        return [(row[0], row[1]) for row in rows]
+
+    async def lock_membership(self, user_id: uuid.UUID) -> Membership:
+        """The membership of an authenticated user, locked for a move between households."""
+        result = await self._session.scalars(
+            select(Membership).where(Membership.user_id == user_id).with_for_update()
+        )
+        return result.one()
+
+    async def delete(self, household_id: uuid.UUID) -> None:
+        await self._session.execute(delete(Household).where(Household.id == household_id))
+
+
+class InviteRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def add(self, invite: Invite) -> None:
+        self._session.add(invite)
+
+    async def get_for_update(self, code_hash: str) -> Invite | None:
+        """Lock the row: one code cannot be redeemed twice concurrently."""
+        return await self._session.scalar(
+            select(Invite).where(Invite.code_hash == code_hash).with_for_update()
+        )
 
 
 class RefreshTokenRepository:

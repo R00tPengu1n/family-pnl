@@ -59,7 +59,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 - [x] Task 4: Registration and login (user, household, owner role, JWT)
 - [x] Task 5: Refresh token rotation and logout
 - [x] Task 6: Login rate limiting in Redis
-- [ ] Task 7: Invites, members list and the isolation test helper
+- [x] Task 7: Invites, members list and the isolation test helper
 - [ ] Task 8: Telegram linking and bot authentication (API side)
 
 ### Checkpoint 1: identity
