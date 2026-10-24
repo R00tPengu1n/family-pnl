@@ -1,6 +1,7 @@
 """NBRB client against responses recorded from api.nbrb.by (no network in tests)."""
 
 import json
+import ssl
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -9,6 +10,7 @@ import httpx
 import pytest
 
 from family_pnl.domain.currency import Currency
+from family_pnl.integrations import nbrb
 from family_pnl.integrations.nbrb import NbrbClient, RateSourceUnavailableError, create_http_client
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "nbrb"
@@ -139,3 +141,11 @@ async def test_default_http_client_points_at_nbrb_with_a_short_timeout() -> None
         assert http.timeout == httpx.Timeout(10.0)
     finally:
         await http.aclose()
+
+
+def test_clients_share_one_tls_context_that_verifies_certificates() -> None:
+    context = nbrb._tls_context()
+
+    assert context is nbrb._tls_context()  # built once per process
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.check_hostname is True
