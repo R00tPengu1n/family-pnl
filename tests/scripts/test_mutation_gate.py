@@ -78,3 +78,50 @@ def test_gate_cannot_run_without_stats(tmp_path: Path) -> None:
 
 def test_gate_cannot_run_on_malformed_stats(tmp_path: Path) -> None:
     assert run_gate(tmp_path, "{not json").returncode == 2
+
+
+CONSTRAINTS_ROW = "| Mutation score (domain) | at least {value}% (Task 4) | must not fall |\n"
+
+
+def test_ratchet_reads_the_recorded_score(tmp_path: Path) -> None:
+    constraints = tmp_path / "CONSTRAINTS.md"
+    constraints.write_text("# Constraints\n" + CONSTRAINTS_ROW.format(value="100.0"), "utf-8")
+
+    assert gate.recorded_score(constraints) == pytest.approx(100.0)
+
+
+def test_ratchet_without_a_recorded_score_is_an_error(tmp_path: Path) -> None:
+    constraints = tmp_path / "CONSTRAINTS.md"
+    constraints.write_text("| Mutation score (domain) | not measured yet | must not fall |\n")
+
+    with pytest.raises(ValueError, match="recorded mutation score"):
+        gate.recorded_score(constraints)
+
+
+def test_gate_fails_when_the_score_falls_more_than_half_a_point(tmp_path: Path) -> None:
+    constraints = tmp_path / "CONSTRAINTS.md"
+    constraints.write_text(CONSTRAINTS_ROW.format(value="100.0"), encoding="utf-8")
+    result = run_gate(
+        tmp_path,
+        json.dumps(stats(killed=62, survived=2, total=64)),
+        "--min",
+        "60",
+        "--ratchet",
+        str(constraints),
+    )
+
+    assert result.returncode == 1
+    assert "96.9% < 99.5%" in result.stderr
+
+
+def test_gate_tolerates_a_drop_of_half_a_point(tmp_path: Path) -> None:
+    constraints = tmp_path / "CONSTRAINTS.md"
+    constraints.write_text(CONSTRAINTS_ROW.format(value="90.0"), encoding="utf-8")
+    result = run_gate(
+        tmp_path,
+        json.dumps(stats(killed=179, survived=21, total=200)),
+        "--ratchet",
+        str(constraints),
+    )
+
+    assert result.returncode == 0

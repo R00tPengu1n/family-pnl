@@ -158,9 +158,9 @@ jobs:
         run: |
           uv run mutmut run --max-children 4
           uv run mutmut export-cicd-stats
-      - name: Mutation score ≥ 60%
+      - name: Mutation score ≥ 60% and not below the recorded score − 0.5
         if: steps.changes.outputs.run == 'true'
-        run: uv run python scripts/mutation_gate.py --min 60
+        run: uv run python scripts/mutation_gate.py --min 60 --ratchet CONSTRAINTS.md
       - name: Surviving mutants
         # On a failed gate, list the mutants the tests did not catch and show their diffs.
         if: failure() && steps.changes.outputs.run == 'true'
