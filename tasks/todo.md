@@ -670,6 +670,8 @@ window or role are explained in Russian.
 **Description:** Multi-stage Dockerfile (uv build stage, slim non-root runtime) for API,
 worker and bot; `docker-compose.yml` with API, bot, worker, PostgreSQL, Redis, a migrate
 step, healthchecks and `restart: unless-stopped`; Docker build in CI.
+Run the API with `uvicorn --factory family_pnl.api.main:create_app` and drop the
+module-level `app`, so importing the module no longer reads `.env` (PR #1 review).
 
 **Acceptance criteria:**
 - [ ] `docker compose up --build` starts all services; `/health` and `/docs` answer
