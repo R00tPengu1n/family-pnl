@@ -346,11 +346,11 @@ explicitly); both amounts are stored.
 account, member, currency.
 
 **Acceptance criteria:**
-- [ ] Balance equals the sum of incomes − expenses ± transfers in the account currency
-- [ ] Each filter and their combination return correct results; page size is capped
+- [x] Balance equals the sum of incomes − expenses ± transfers in the account currency
+- [x] Each filter and their combination return correct results; page size is capped
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_balances.py tests/integration/test_operation_filters.py`
+- [x] `uv run pytest tests/integration/test_balances.py tests/integration/test_operation_filters.py`
 
 **Dependencies:** Task 15
 **Files likely touched:** `repositories/operations.py`, `repositories/accounts.py`,
@@ -358,8 +358,8 @@ account, member, currency.
 **Estimated scope:** M
 
 ### Checkpoint 3: ledger
-- [ ] Two members record operations in BYN and RUB; balances and filters are correct
-- [ ] Short report to the owner
+- [x] Two members record operations in BYN and RUB; balances and filters are correct
+- [x] Short report to the owner
 
 ---
 

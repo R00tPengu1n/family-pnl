@@ -78,10 +78,10 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 - [x] Task 13: Categories with a default set per household
 - [x] Task 14: Income and expense operations (CRUD, author/owner permissions)
 - [x] Task 15: Transfers between accounts with currency conversion
-- [ ] Task 16: Account balances, operation filters and pagination
+- [x] Task 16: Account balances, operation filters and pagination
 
 ### Checkpoint 3: ledger
-- [ ] Two members record operations in BYN and RUB; balances and filters are correct
+- [x] Two members record operations in BYN and RUB; balances and filters are correct
 
 ### Phase 4: budgets
 - [ ] Task 17: Budget approval window domain logic
