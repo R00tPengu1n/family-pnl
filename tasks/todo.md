@@ -575,6 +575,8 @@ not approved and keep reminding.
 **Description:** `family_pnl_bot` package: aiogram 3 dispatcher, config, typed httpx API
 client with token caching via `/auth/telegram`; `/start` registers a Telegram-only account
 or redeems an invite (`/start <code>`); `/link <code>` links an existing API account.
+`/link` attempts are throttled per Telegram user (ADR-0007: the bot is the only way to try
+link codes).
 The bot imports nothing from `family_pnl`.
 
 **Acceptance criteria:**
