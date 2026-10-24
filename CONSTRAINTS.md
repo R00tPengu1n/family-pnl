@@ -72,7 +72,7 @@ value is recorded here.
 | Metric | Today | Direction |
 |---|---|---|
 | Project coverage | 100.00% (2026-10-24, Task 3) | must not fall |
-| Mutation score (domain) | not measured yet: first domain code arrives in Task 9 | must not fall |
+| Mutation score (domain) | at least 100.0% (Task 4, 2026-10-24: all 17 mutants killed) | must not fall |
 
 ## Exceptions
 
