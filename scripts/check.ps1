@@ -42,7 +42,9 @@ $checks.Add(@{ Name = 'mypy';         Args = @('-m', 'mypy') })
 $checks.Add(@{ Name = 'import-linter'; Args = @('-c', 'import sys; from importlinter.cli import lint_imports_command; sys.exit(lint_imports_command())') })
 $checks.Add(@{ Name = 'floor guard';  Args = @('scripts/floor_guard.py', '--base', $Base) })
 if ($Stage -in @('task', 'full')) {
-    $checks.Add(@{ Name = 'pytest';   Args = @('-m', 'pytest', '-q', '--cov', '--cov-fail-under=85', '--cov-report=term-missing') })
+    # 85% floor, or the ratchet recorded in CONSTRAINTS.md minus 0.5 points if higher.
+    $coverageGate = (& $python scripts/ratchet.py).Trim()
+    $checks.Add(@{ Name = 'pytest';   Args = @('-m', 'pytest', '-q', '--cov', "--cov-fail-under=$coverageGate", '--cov-report=term-missing') })
 }
 if ($Stage -eq 'full') {
     # Audit exactly what uv.lock pins (with hashes); the project itself is not on PyPI.
