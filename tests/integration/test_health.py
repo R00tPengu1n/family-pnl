@@ -1,11 +1,33 @@
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
+
+from family_pnl.api.main import create_app
+from family_pnl.core.config import Settings
 
 
-async def test_health_returns_ok(client: AsyncClient) -> None:
+async def test_health_reports_ok_when_the_database_answers(client: AsyncClient) -> None:
     response = await client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "database": "ok"}
+
+
+async def test_health_reports_unavailable_database_with_503(settings: Settings) -> None:
+    # Port 1 on localhost refuses connections immediately.
+    broken = settings.model_copy(
+        update={"database_url": SecretStr("postgresql+asyncpg://u:p@127.0.0.1:1/none")}
+    )
+    app = create_app(broken)
+    transport = ASGITransport(app=app)
+
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as http:
+            response = await http.get("/health")
+    finally:
+        await app.state.engine.dispose()
+
+    assert response.status_code == 503
+    assert response.json() == {"status": "unavailable", "database": "unavailable"}
 
 
 async def test_openapi_schema_describes_health(client: AsyncClient) -> None:
