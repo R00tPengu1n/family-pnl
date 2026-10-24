@@ -4,9 +4,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Response, status
 
-from family_pnl.api.deps import BudgetServiceDep, CurrentUserDep
+from family_pnl.api.deps import BudgetExecutionServiceDep, BudgetServiceDep, CurrentUserDep
 from family_pnl.api.errors import ErrorResponse
-from family_pnl.api.schemas.budgets import BudgetOut, LimitIn
+from family_pnl.api.schemas.budgets import BudgetOut, ExecutionOut, LimitIn
 
 router = APIRouter(
     prefix="/budgets",
@@ -65,3 +65,14 @@ async def remove_limit(
 @router.post("/{month}/approve", summary="Approve the budget (owner only)")
 async def approve(month: MonthPath, user: CurrentUserDep, budgets: BudgetServiceDep) -> BudgetOut:
     return BudgetOut.of(await budgets.approve(user, _first_day(month)))
+
+
+@router.get(
+    "/{month}/execution",
+    summary="Spent and remaining per budgeted category, in the budget currency",
+    responses={status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse}},
+)
+async def execution(
+    month: MonthPath, user: CurrentUserDep, executions: BudgetExecutionServiceDep
+) -> ExecutionOut:
+    return ExecutionOut.of(await executions.execution(user, _first_day(month)))

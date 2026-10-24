@@ -15,6 +15,7 @@ from family_pnl.models.identity import (
     User,
 )
 from family_pnl.models.ledger import Account, Category, Operation
+from family_pnl.models.notifications import Notification
 
 __all__ = [
     "Account",
@@ -26,6 +27,7 @@ __all__ = [
     "Household",
     "Invite",
     "Membership",
+    "Notification",
     "Operation",
     "RefreshToken",
     "TelegramLinkCode",

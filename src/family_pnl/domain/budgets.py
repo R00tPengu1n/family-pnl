@@ -9,6 +9,7 @@ the owner changes the budget. All dates are household dates (`local_today`).
 import calendar
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
@@ -88,3 +89,14 @@ def require_budget_editor(
 def require_budget_approver(role: Role) -> None:
     if role is not Role.OWNER:
         raise PermissionDeniedError("Only the household owner can approve the budget")
+
+
+# Members are notified once per threshold, category and month.
+THRESHOLDS = (80, 100)
+
+
+def reached_thresholds(spent: Decimal, limit: Decimal) -> tuple[int, ...]:
+    """The thresholds (percent of the limit) that `spent` has reached."""
+    if limit <= 0:
+        raise ValueError(f"limit must be positive, got {limit}")
+    return tuple(t for t in THRESHOLDS if spent * 100 >= limit * t)

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from family_pnl.api.schemas.operations import Amount
 from family_pnl.domain.budgets import BudgetStatus
 from family_pnl.domain.currency import Currency
+from family_pnl.services.budget_execution import ExecutionView
 from family_pnl.services.budgets import BudgetView
 
 
@@ -50,4 +51,37 @@ class BudgetOut(BaseModel):
             window=WindowOut(
                 opens=view.window_opens, closes=view.window_closes, open=view.window_open
             ),
+        )
+
+
+class CategoryExecutionOut(BaseModel):
+    category_id: uuid.UUID
+    category: str
+    limit: Decimal
+    spent: Decimal
+    remaining: Decimal
+    percent: Decimal
+
+
+class ExecutionOut(BaseModel):
+    month: str
+    currency: Currency
+    categories: list[CategoryExecutionOut]
+
+    @classmethod
+    def of(cls, view: ExecutionView) -> "ExecutionOut":
+        return cls(
+            month=view.month.strftime("%Y-%m"),
+            currency=view.currency,
+            categories=[
+                CategoryExecutionOut(
+                    category_id=c.category_id,
+                    category=c.category,
+                    limit=c.limit,
+                    spent=c.spent,
+                    remaining=c.remaining,
+                    percent=c.percent,
+                )
+                for c in view.categories
+            ],
         )
