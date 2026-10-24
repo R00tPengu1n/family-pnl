@@ -28,7 +28,8 @@ ALEMBIC_INI = str(Path(__file__).resolve().parents[2] / "alembic.ini")
 
 def alembic_config(database_url: str) -> Config:
     config = Config(ALEMBIC_INI)
-    config.set_main_option("sqlalchemy.url", database_url)
+    # ConfigParser treats % as interpolation; URL-encoded passwords contain it.
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
     config.attributes["configure_logging"] = False
     return config
 

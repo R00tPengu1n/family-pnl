@@ -37,3 +37,9 @@ def test_migrations_downgrade_to_base_and_upgrade_back(migrated_database_url: st
 
     command.downgrade(config, "base")
     command.upgrade(config, "head")
+
+
+def test_alembic_config_keeps_percent_signs_in_the_url() -> None:
+    url = "postgresql+asyncpg://user:p%40ss@localhost:5432/db"
+
+    assert alembic_config(url).get_main_option("sqlalchemy.url") == url
