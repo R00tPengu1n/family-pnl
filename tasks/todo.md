@@ -601,11 +601,11 @@ commas as decimal separators, currency aliases (`р`, `руб`, `$`, `бел`).
 Returns type, amount `Decimal`, optional currency and the category text.
 
 **Acceptance criteria:**
-- [ ] Table-driven tests cover the spec examples, aliases, commas and invalid input
-- [ ] Never produces `float`
+- [x] Table-driven tests cover the spec examples, aliases, commas and invalid input
+- [x] Never produces `float`
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/bot/test_parser.py`
+- [x] `uv run pytest tests/unit/test_bot_parser.py`
 
 **Dependencies:** Task 27 (package only)
 **Files likely touched:** `family_pnl_bot/parser.py`, tests

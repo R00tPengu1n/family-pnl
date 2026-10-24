@@ -74,9 +74,6 @@ select = [
     "RUF",          # ruff-specific
 ]
 
-# Bot texts are Russian: the one-letter words "В", "К", "С" are not look-alikes there.
-allowed-confusables = ["В", "К", "С"]
-
 [tool.ruff.lint.per-file-ignores]
 # Tests assert by design and use fixed passwords and token values as fixtures.
 "tests/**" = ["S101", "S105", "S106"]
@@ -86,6 +83,10 @@ allowed-confusables = ["В", "К", "С"]
 "migrations/versions/**" = ["F401"]
 # Script tests run git and the script under test with fixed arguments.
 "tests/scripts/**" = ["S101", "S105", "S106", "S603", "S607"]
+# The bot speaks Russian: Cyrillic letters in its texts and aliases are meant, not look-alikes.
+"src/family_pnl_bot/**" = ["RUF001", "RUF002"]
+"tests/integration/bot/**" = ["RUF001"]
+"tests/unit/test_bot_*.py" = ["RUF001"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
