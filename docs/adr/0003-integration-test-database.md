@@ -25,6 +25,12 @@ never leak data between tests.
   tests and direct assertions see the same data.
 - **Event loop.** One asyncio loop per test session, shared by the engine and all tests.
 
+- **Parallel workers** (pytest-xdist, added later): each worker gets its own database on the
+  same server (`<name>_gwN`, created from the `postgres` maintenance database) and its own
+  Redis database number, so workers never share state. Locally the tests reuse the dev
+  servers from `docker-compose.dev.yml` with a separate `family_pnl_test` database
+  (`TEST_DATABASE_URL` / `TEST_REDIS_URL`, read from the environment or `.env`).
+
 ## Consequences
 
 - Tests exercise real SQL and real migrations; there is no second schema definition.
@@ -33,3 +39,4 @@ never leak data between tests.
 - Code that opens its own connections bypasses the per-test transaction (for example the
   health check's ping); such code must not write data.
 - Local runs need Docker Desktop; the first run pulls the PostgreSQL image.
+- Tests must never point at the dev database itself: one test downgrades the schema to base.

@@ -4,13 +4,19 @@ PostgreSQL comes from TEST_DATABASE_URL and Redis from TEST_REDIS_URL when set (
 otherwise from throwaway testcontainers. Migrations run once per session; every test runs
 inside a database transaction that is rolled back and Redis is flushed after it, so tests
 never see each other's data.
+
+With pytest-xdist every worker gets its own database (`<name>_gwN`, created on demand) and
+its own Redis database number, so parallel workers never share state.
 """
 
+import asyncio
 import os
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
+import asyncpg
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -18,6 +24,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 from redis.asyncio import Redis
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from testcontainers.community.postgres import PostgresContainer
 from testcontainers.community.redis import RedisContainer
@@ -42,21 +49,66 @@ def alembic_config(database_url: str) -> Config:
     return config
 
 
+def _worker_number(worker_id: str) -> int:
+    return 0 if worker_id == "master" else int(worker_id.removeprefix("gw"))
+
+
+def _test_setting(name: str) -> str | None:
+    """An environment variable, else the same key in the repository's .env (local runs)."""
+    if name in os.environ:
+        return os.environ[name]
+    env_file = Path(__file__).resolve().parents[2] / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            key, _, value = line.partition("=")
+            if key.strip() == name and value.strip():
+                return value.strip()
+    return None
+
+
+def _worker_database(url: str, worker_id: str) -> str:
+    """The URL of this worker's own database on a shared server, created if missing."""
+    base = make_url(url)
+    name = base.database if worker_id == "master" else f"{base.database}_{worker_id}"
+
+    async def create() -> None:
+        # The maintenance database always exists; the test database may not yet.
+        admin = base.set(drivername="postgresql", database="postgres")
+        dsn = admin.render_as_string(hide_password=False)
+        connection = await asyncpg.connect(dsn)
+        try:
+            exists = await connection.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", name)
+            if not exists:
+                await connection.execute(f'CREATE DATABASE "{name}"')
+        finally:
+            await connection.close()
+
+    asyncio.run(create())
+    return base.set(database=name).render_as_string(hide_password=False)
+
+
+def _worker_redis(url: str, worker_id: str) -> str:
+    """The same Redis server, a database number per worker (Redis has 16 by default)."""
+    parts = urlsplit(url)
+    base = int(parts.path.lstrip("/") or 0)
+    return urlunsplit(parts._replace(path=f"/{(base + _worker_number(worker_id)) % 16}"))
+
+
 @pytest.fixture(scope="session")
-def database_url() -> Iterator[str]:
-    url = os.environ.get("TEST_DATABASE_URL")
+def database_url(worker_id: str) -> Iterator[str]:
+    url = _test_setting("TEST_DATABASE_URL")
     if url:
-        yield url
+        yield _worker_database(url, worker_id)
         return
     with PostgresContainer("postgres:16-alpine", driver="asyncpg") as postgres:
         yield postgres.get_connection_url()
 
 
 @pytest.fixture(scope="session")
-def redis_url() -> Iterator[str]:
-    url = os.environ.get("TEST_REDIS_URL")
+def redis_url(worker_id: str) -> Iterator[str]:
+    url = _test_setting("TEST_REDIS_URL")
     if url:
-        yield url
+        yield _worker_redis(url, worker_id)
         return
     with RedisContainer("redis:7-alpine") as container:
         host = container.get_container_host_ip()
