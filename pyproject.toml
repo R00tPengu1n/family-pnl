@@ -70,14 +70,14 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Tests assert by design.
-"tests/**" = ["S101"]
+# Tests assert by design and use fixed passwords and token values as fixtures.
+"tests/**" = ["S101", "S105", "S106"]
 # Developer scripts print reports and call git with fixed arguments.
 "scripts/**" = ["T201", "S603", "S607"]
 # Generated revisions always import op and sa, even when a revision does not use them.
 "migrations/versions/**" = ["F401"]
 # Script tests run git and the script under test with fixed arguments.
-"tests/scripts/**" = ["S101", "S603", "S607"]
+"tests/scripts/**" = ["S101", "S105", "S106", "S603", "S607"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -107,6 +107,8 @@ filterwarnings = ["error"]
 [tool.coverage.run]
 source = ["src"]
 branch = true
+# SQLAlchemy async runs code in greenlets; without this, lines after an await go untraced.
+concurrency = ["greenlet", "thread"]
 
 [tool.coverage.report]
 fail_under = 85
