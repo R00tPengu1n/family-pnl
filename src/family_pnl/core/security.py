@@ -94,3 +94,12 @@ def new_refresh_token() -> str:
 
 def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def new_invite_code() -> str:
+    # 128 bits; URL-safe, so it fits a Telegram deep link (/start <code>).
+    return secrets.token_urlsafe(16)
+
+
+def hash_invite_code(code: str) -> str:
+    return hashlib.sha256(code.encode()).hexdigest()
