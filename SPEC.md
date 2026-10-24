@@ -52,6 +52,10 @@ service, repository, API, tests.
   has a test for this.
 - Telegram linking: the user requests a one-time code (10 min) in the API and
   sends it to the bot; the bot binds the Telegram account to the user.
+- Registration from the bot: `/start` creates an account linked to Telegram
+  with no password; `/start <invite code>` also redeems an invite. Email and
+  password can be added later for API access. The bot never asks for a password
+  in chat.
 
 #### fx
 
@@ -105,6 +109,8 @@ service, repository, API, tests.
 - Household base currency: RUB by default, changeable by the owner.
 - Display currency: each member can choose RUB, BYN or USD for themselves;
   reports and balances use it.
+- Input currency: each member has a default input currency (changeable in the
+  bot) used when a quick-entry message has no currency suffix.
 - Report for a period: totals, breakdown by category, by member, by month;
   plan vs actual for budgets.
 - CSV import of operations (format documented in README) with per-row
@@ -287,14 +293,9 @@ class Money:
 
 ## Open Questions
 
-1. **How a member creates an account.** There is no web frontend, so
-   email/password registration is only reachable through the API docs page.
-   Proposal: registration and invite redemption also work from the bot
-   (`/start` → create account linked to Telegram; email and password can be
-   added later for API access). The bot deletes any message containing a
-   password right after reading it.
-2. **Default input currency per member** (BYN for one member, RUB for another)
-   so that `кофе 5.50` needs no currency suffix. Proposal: a per-member setting,
-   changeable in the bot.
+1. ~~How a member creates an account~~ — resolved: passwordless registration
+   and invite redemption from the bot (see `identity`).
+2. ~~Default input currency per member~~ — resolved: per-member setting
+   changeable in the bot (see `reports`).
 3. **VPS provider** — to be chosen by the owner before the deploy module;
    2–3 options payable from Belarus will be proposed then.
