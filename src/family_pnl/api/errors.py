@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from family_pnl.core.errors import (
+    AuthenticationError,
     ConflictError,
     DomainError,
     NotFoundError,
@@ -23,6 +24,7 @@ logger = structlog.get_logger(__name__)
 
 # Most specific class first: a subclass inherits the status of its parent.
 _DOMAIN_STATUS: tuple[tuple[type[DomainError], int], ...] = (
+    (AuthenticationError, status.HTTP_401_UNAUTHORIZED),
     (NotFoundError, status.HTTP_404_NOT_FOUND),
     (ConflictError, status.HTTP_409_CONFLICT),
     (PermissionDeniedError, status.HTTP_403_FORBIDDEN),
@@ -71,7 +73,9 @@ def _status_for(error: DomainError) -> int:
 
 
 async def _domain_error(_: Request, exc: DomainError) -> JSONResponse:
-    return _error(_status_for(exc), exc.code, exc.message)
+    # RFC 6750: a 401 tells the client which authentication scheme to use.
+    headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, AuthenticationError) else None
+    return _error(_status_for(exc), exc.code, exc.message, headers=headers)
 
 
 async def _request_invalid(_: Request, exc: RequestValidationError) -> JSONResponse:
