@@ -48,7 +48,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 ### Phase 0: Foundation
 - [x] Task 1: Project skeleton, tooling and `GET /health`
 - [x] Task 2: Database layer, Alembic and integration test fixtures
-- [ ] Task 3: CI pipeline in GitHub Actions
+- [x] Task 3: CI pipeline in GitHub Actions
 
 ### Checkpoint 0: Foundation
 - [ ] `scripts/check.ps1` green locally, CI green on `main`
