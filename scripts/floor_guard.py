@@ -22,7 +22,7 @@ from pathlib import Path
 
 CONSTRAINTS = "CONSTRAINTS.md"
 # Files that quote the patterns below by design.
-SELF_EXEMPT = {"scripts/floor_guard.py", CONSTRAINTS}
+SELF_EXEMPT = {"scripts/floor_guard.py", "tests/scripts/test_floor_guard.py", CONSTRAINTS}
 
 SUPPRESSIONS = re.compile(
     r"#\s*noqa|#\s*type:\s*ignore|#\s*pyright:\s*ignore|#\s*pragma:\s*no\s*cover"

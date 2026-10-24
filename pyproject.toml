@@ -64,6 +64,8 @@ select = [
 "tests/**" = ["S101"]
 # Developer scripts print reports and call git with fixed arguments.
 "scripts/**" = ["T201", "S603", "S607"]
+# Script tests run git and the script under test with fixed arguments.
+"tests/scripts/**" = ["S101", "S603", "S607"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
