@@ -29,13 +29,15 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
   test helper checks this for every endpoint. Recorded in Task 7.
 - **ADR-0005 Refresh token rotation.** Refresh tokens are stored hashed with a family id;
   reuse of a rotated token revokes the whole family. Recorded in Task 5.
-- **ADR-0006 Bot authentication.** The bot holds a service secret and exchanges a
+- **ADR-0006 Login rate limiting fails open.** Per-email and per-IP counters in Redis; a
+  Redis outage does not block logins. Recorded in Task 6.
+- **ADR-0007 Bot authentication.** The bot holds a service secret and exchanges a
   linked Telegram user id for a short-lived user access token (`POST /auth/telegram`).
   The API still applies normal user permissions to every bot request. Recorded in Task 8.
-- **ADR-0007 FX conversion rules.** Rates stored as BYN per unit (with NBRB scale
+- **ADR-0008 FX conversion rules.** Rates stored as BYN per unit (with NBRB scale
   normalised); cross rates derived via BYN; nearest earlier rate for missing dates;
   last known rate plus a warning when NBRB is unavailable. Recorded in Task 11.
-- **ADR-0008 Notifications via an outbox.** Budget alerts and reminders are written to a
+- **ADR-0009 Notifications via an outbox.** Budget alerts and reminders are written to a
   `notifications` table in the same transaction as the triggering change; the worker
   delivers them through the Telegram Bot API and marks them sent. This gives
   "once per threshold per month" through a unique key and survives worker restarts.
@@ -56,7 +58,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 ### Phase 1: identity
 - [x] Task 4: Registration and login (user, household, owner role, JWT)
 - [x] Task 5: Refresh token rotation and logout
-- [ ] Task 6: Login rate limiting in Redis
+- [x] Task 6: Login rate limiting in Redis
 - [ ] Task 7: Invites, members list and the isolation test helper
 - [ ] Task 8: Telegram linking and bot authentication (API side)
 

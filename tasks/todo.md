@@ -139,11 +139,11 @@ revokes the current token (ADR-0005).
 not reset the IP counter.
 
 **Acceptance criteria:**
-- [ ] 5 failed attempts per email or per IP within 15 minutes → next attempt 429
-- [ ] Counters expire after the window (tested with a fake clock or Redis TTL)
+- [x] 5 failed attempts per email or per IP within 15 minutes → next attempt 429
+- [x] Counters expire after the window (tested with a fake clock or Redis TTL)
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_login_rate_limit.py`
+- [x] `uv run pytest tests/integration/test_login_rate_limit.py`
 
 **Dependencies:** Task 4
 **Files likely touched:** `core/redis.py`, `services/rate_limit.py`, `api/routers/auth.py`, tests
@@ -177,7 +177,7 @@ isolation/role test helper and ADR-0004.
 **Description:** `POST /me/telegram-link-code` returns a one-time 10-minute code;
 bot-only endpoints protected by a service secret: `POST /bot/link` (code + Telegram id),
 `POST /auth/telegram` (Telegram id → user access token), `POST /bot/register`
-(Telegram-only account, see plan Open Question 1). ADR-0006.
+(Telegram-only account, see plan Open Question 1). ADR-0007.
 
 **Acceptance criteria:**
 - [ ] Linking binds exactly one Telegram id to one user; reused or expired code → 400
@@ -189,7 +189,7 @@ bot-only endpoints protected by a service secret: `POST /bot/link` (code + Teleg
 
 **Dependencies:** Tasks 5, 7
 **Files likely touched:** `models/identity.py`, `services/telegram_link.py`,
-`api/routers/bot.py`, `api/deps.py`, migration, `docs/adr/0006-*.md`, tests
+`api/routers/bot.py`, `api/deps.py`, migration, `docs/adr/0007-*.md`, tests
 **Estimated scope:** M
 
 ### Checkpoint 1: identity
@@ -239,7 +239,7 @@ derivation through BYN, single rounding step. Pure domain, no I/O.
 **Description:** `fx_rates` table (currency, date, BYN per unit) and migration;
 `RateService.get_rate(from, to, date)` uses stored rates, fetches missing historical
 rates on demand, falls back to the nearest earlier date and to the last known rate with a
-warning log when NBRB is down; `GET /fx/rates?date=` and `GET /fx/convert`. ADR-0007.
+warning log when NBRB is down; `GET /fx/rates?date=` and `GET /fx/convert`. ADR-0008.
 
 **Acceptance criteria:**
 - [ ] A weekend date uses the nearest earlier stored rate
@@ -251,7 +251,7 @@ warning log when NBRB is down; `GET /fx/rates?date=` and `GET /fx/convert`. ADR-
 
 **Dependencies:** Tasks 2, 10
 **Files likely touched:** `models/fx.py`, `repositories/fx_rates.py`, `services/fx.py`,
-`api/routers/fx.py`, migration, `docs/adr/0007-*.md`, tests
+`api/routers/fx.py`, migration, `docs/adr/0008-*.md`, tests
 **Estimated scope:** M
 
 ### Checkpoint 2: fx
@@ -403,7 +403,7 @@ set/change limits and approve (owner only), enforcing the window rules via the c
 **Description:** `GET /budgets/{month}/execution`: spent and remaining per category in base
 currency (converted at operation date rates). After an expense is created or changed,
 detect crossing 80% / 100% and write a notification to the `notifications` outbox with a
-unique key (ADR-0008).
+unique key (ADR-0009).
 
 **Acceptance criteria:**
 - [ ] Spent amounts in mixed currencies are converted at the rate on each operation's date
@@ -415,7 +415,7 @@ unique key (ADR-0008).
 
 **Dependencies:** Tasks 16, 18
 **Files likely touched:** `models/notifications.py`, `services/budget_execution.py`,
-`services/operations.py`, `api/routers/budgets.py`, migration, `docs/adr/0008-*.md`
+`services/operations.py`, `api/routers/budgets.py`, migration, `docs/adr/0009-*.md`
 **Estimated scope:** M
 
 ### Checkpoint 4: budgets
@@ -728,7 +728,8 @@ review, then `/engineering:code-review` on the whole codebase; fix findings in s
 
 ### Task 35: VPS provisioning and `docs/deploy.md`
 
-**Description:** Owner chooses a VPS (spec Q3). Server hardening (SSH keys, firewall with
+**Description:** Owner chooses a VPS (spec Q3). Run uvicorn with `--proxy-headers` and a
+trusted `--forwarded-allow-ips` so the login rate limit sees real client IPs (ADR-0006). Server hardening (SSH keys, firewall with
 only required ports), Docker install, `.env` on the server, HTTPS via a reverse proxy if
 the API is public. Every step documented in `docs/deploy.md`.
 
