@@ -10,10 +10,13 @@ so the caller can fall back to the last known rate.
 """
 
 import json
+import ssl
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from functools import cache
 from typing import Any
 
+import certifi
 import httpx
 
 from family_pnl.domain.currency import Currency
@@ -65,6 +68,12 @@ def _parse(text: str, day: date) -> dict[Currency, Decimal]:
     return rates
 
 
+@cache
+def _tls_context() -> ssl.SSLContext:
+    # Loading the CA bundle takes ~0.25 s; one context serves every client of the process.
+    return ssl.create_default_context(cafile=certifi.where())
+
+
 def create_http_client(base_url: str = BASE_URL) -> httpx.AsyncClient:
     # NBRB is slow at times; a short timeout lets the caller fall back quickly.
-    return httpx.AsyncClient(base_url=base_url, timeout=httpx.Timeout(10.0))
+    return httpx.AsyncClient(base_url=base_url, timeout=httpx.Timeout(10.0), verify=_tls_context())
