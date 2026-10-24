@@ -93,6 +93,25 @@ def test_assertion_removed_from_a_remaining_test_is_flagged() -> None:
     assert rules(guard.check([], removed, [])) == ["assertion-removed"]
 
 
+def test_assertion_rewritten_in_place_is_not_a_removal() -> None:
+    removed = [Line("tests/test_health.py", '    assert response.json() == {"status": "ok"}')]
+    added = [
+        Line("tests/test_health.py", '    assert response.json() == {"status": "ok", "db": "ok"}')
+    ]
+
+    assert guard.check(added, removed, []) == []
+
+
+def test_fewer_assertions_in_a_test_file_is_flagged() -> None:
+    removed = [
+        Line("tests/test_a.py", "    assert a == 1"),
+        Line("tests/test_a.py", "    assert b == 2"),
+    ]
+    added = [Line("tests/test_a.py", "    assert a == 1 and b == 2")]
+
+    assert rules(guard.check(added, removed, [])) == ["assertion-removed"]
+
+
 def test_assertion_removed_from_source_code_is_not_a_test_change() -> None:
     assert guard.check([], [Line("src/a.py", "    assert x")], []) == []
 

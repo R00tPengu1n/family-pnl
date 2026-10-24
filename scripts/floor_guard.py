@@ -195,9 +195,20 @@ def check(added: list[Line], removed: list[Line], deleted: list[str]) -> list[Fi
     for path in deleted:
         if is_test(path):
             flag("test-deleted", path, "file deleted")
+    # An assertion rewritten in place is a removal plus an addition; only a file that ends
+    # up with fewer assertions has lost checks.
+    removed_asserts: dict[str, list[str]] = {}
+    added_asserts: dict[str, int] = {}
     for line in removed:
         if is_test(line.file) and line.file not in deleted and ASSERTIONS.search(line.text):
-            flag("assertion-removed", line.file, line.text)
+            removed_asserts.setdefault(line.file, []).append(line.text)
+    for line in added:
+        if is_test(line.file) and ASSERTIONS.search(line.text):
+            added_asserts[line.file] = added_asserts.get(line.file, 0) + 1
+    for path, texts in removed_asserts.items():
+        lost = len(texts) - added_asserts.get(path, 0)
+        if lost > 0:
+            flag("assertion-removed", path, f"{lost} fewer assertion(s), e.g. {texts[0].strip()}")
 
     removed_rules = [r for r in removed if r.file == CONSTRAINTS and rule_key(r.text)]
     added_rules = [a for a in added if a.file == CONSTRAINTS and rule_key(a.text)]
