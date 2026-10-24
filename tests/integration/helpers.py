@@ -2,6 +2,7 @@
 
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 from httpx import AsyncClient
 
@@ -44,3 +45,24 @@ async def log_in(client: AsyncClient, email: str) -> Actor:
         household_id=uuid.UUID(body["household"]["id"]),
         access_token=token,
     )
+
+
+async def join_household(client: AsyncClient, owner: Actor, email: str) -> Actor:
+    """A new user who joined the owner's household as a member through an invite."""
+    newcomer = await sign_up(client, email)
+    code = (await client.post("/household/invites", headers=owner.headers)).json()["code"]
+    redeemed = await client.post(f"/household/invites/{code}/redeem", headers=newcomer.headers)
+    assert redeemed.status_code == 200, redeemed.text
+    return await log_in(client, email)
+
+
+async def assert_hidden_from(
+    client: AsyncClient, outsider: Actor, method: str, path: str, json: Any = None
+) -> None:
+    """Isolation (ADR-0004): an outsider gets the same 404 as for an id that does not exist."""
+    foreign = await client.request(method, path, headers=outsider.headers, json=json)
+    missing_path = path.rsplit("/", 1)[0] + f"/{uuid.uuid4()}"
+    missing = await client.request(method, missing_path, headers=outsider.headers, json=json)
+
+    assert foreign.status_code == 404, f"{method} {path} leaked: {foreign.status_code}"
+    assert foreign.json() == missing.json()
