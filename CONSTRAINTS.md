@@ -26,14 +26,14 @@ Checked by `python scripts/floor_guard.py` on the diff against `origin/main`
 | Dimension | Rule | Checked by | Runs at | Why this number |
 |---|---|---|---|---|
 | Lint | Zero ruff errors, format clean | `uv run ruff check .` and `uv run ruff format --check .` | edit, task end, CI | Style is not discussed in review |
-| Types | Zero mypy errors in strict mode | `uv run mypy src` | edit, task end, CI | Strict typing is part of the spec |
-| Layers | Zero import-linter contract violations | `uv run lint-imports` | edit, task end, CI | Enforces the dependency direction from `SPEC.md` (see contracts below) |
+| Types | Zero mypy errors in strict mode | `uv run python -m mypy` | edit, task end, CI | Strict typing is part of the spec |
+| Layers | Zero import-linter contract violations | `uv run lint-imports` (`check.ps1` calls `importlinter.cli` through python) | edit, task end, CI | Enforces the dependency direction from `SPEC.md` (see contracts below) |
 | Floor | Zero floor guard findings | `python scripts/floor_guard.py` | edit, task end, CI | See Floor |
 | Secrets | Zero gitleaks findings | `gitleaks git --redact --no-banner` (pre-commit hook and CI) | commit, CI | Any leaked token is an incident; `--redact` keeps values out of logs |
-| Tests | All tests pass, none skipped | `uv run pytest` | task end, CI | Red tests mean the task is not done |
-| Coverage (project) | ≥ 85% of `src/` lines and branches | `uv run pytest --cov=src --cov-branch --cov-fail-under=85` | task end, CI | Spec success criterion |
+| Tests | All tests pass, none skipped | `uv run python -m pytest` | task end, CI | Red tests mean the task is not done |
+| Coverage (project) | ≥ 85% of `src/` lines and branches | `uv run python -m pytest --cov` (gate and branch coverage in `pyproject.toml`) | task end, CI | Spec success criterion |
 | Security: code | Zero findings at ERROR severity | `semgrep scan --config p/python --config p/owasp-top-ten --severity ERROR --error src` | CI | External opinion on injection, crypto and auth mistakes; WARNING findings are reviewed, not blocking |
-| Security: deps | No known vulnerability in locked dependencies | `uv run pip-audit` | CI | External vulnerability database; required by the spec |
+| Security: deps | No known vulnerability in locked dependencies | `uv export --frozen --no-emit-project` then `pip-audit -r <file> --strict --require-hashes --disable-pip` | CI | External vulnerability database; required by the spec |
 | Mutation score | ≥ 60% killed mutants in `src/family_pnl/domain/` | `mutmut run` on changed domain modules, score from `mutmut export-cicd-stats` | CI, PRs touching `domain/` | Starting value for a suite never mutated before; raised by ratchet |
 | Task-end budget | Full local check ≤ 90 s | `.\scripts\check.ps1 -Stage task` | task end | Owner's limit; slower checks move to CI |
 | Edit-loop budget | Fast check ≤ 10 s | `.\scripts\check.ps1 -Stage fast` | after edits | A slow edit loop gets skipped |
@@ -51,6 +51,9 @@ Configured in `pyproject.toml` (`[tool.importlinter]`):
 4. `family_pnl.worker` and `family_pnl.api` do not import each other.
 
 ## Stages
+
+On Windows with Smart App Control the unsigned `.exe` wrappers of Python tools are
+blocked, so `check.ps1` runs every tool as `python -m <tool>` from `.venv`.
 
 | Stage | Command | What runs | Budget |
 |---|---|---|---|
