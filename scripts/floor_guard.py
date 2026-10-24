@@ -36,9 +36,7 @@ ASSERTIONS = re.compile(r"\bassert\b|pytest\.raises|pytest\.warns|\.assert_\w+\(
 EXCEPTION_ROW = re.compile(r"^\|\s*W\d+\s*\|")
 EXCEPTION_REF = re.compile(r"\bW\d+\b")
 
-MIN_BEFORE = re.compile(
-    r"(>=|>|≥|at least|minimum|\bmin\b|no less than|not fall|not drop)\s*$"
-)
+MIN_BEFORE = re.compile(r"(>=|>|≥|at least|minimum|\bmin\b|no less than|not fall|not drop)\s*$")
 MAX_BEFORE = re.compile(
     r"(<=|<|≤|at most|maximum|\bmax\b|no more than|under|below|not grow|not exceed)\s*$"
 )
