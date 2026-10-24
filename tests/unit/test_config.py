@@ -16,6 +16,7 @@ def _clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         "FAMILY_PNL_LOG_LEVEL",
         "FAMILY_PNL_LOG_JSON",
         "FAMILY_PNL_DEFAULT_TIMEZONE",
+        "FAMILY_PNL_BOT_API_SECRET",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("FAMILY_PNL_DATABASE_URL", DATABASE_URL)
@@ -129,3 +130,23 @@ def test_redis_url_must_use_a_redis_scheme(monkeypatch: pytest.MonkeyPatch) -> N
 
     with pytest.raises(ValidationError, match="redis://"):
         Settings(_env_file=None)
+
+
+def test_bot_api_is_disabled_without_a_secret() -> None:
+    assert Settings(_env_file=None).bot_api_secret is None
+
+
+def test_short_bot_secret_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAMILY_PNL_BOT_API_SECRET", "x" * 31)
+
+    with pytest.raises(ValidationError, match="32"):
+        Settings(_env_file=None)
+
+
+def test_bot_secret_is_hidden_in_repr(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAMILY_PNL_BOT_API_SECRET", "b0t-" * 10)
+
+    settings = Settings(_env_file=None)
+
+    assert "b0t-" not in repr(settings)
+    assert settings.bot_api_secret is not None
