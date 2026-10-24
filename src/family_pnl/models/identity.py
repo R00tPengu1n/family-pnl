@@ -35,6 +35,17 @@ class Household(Base):
     timezone: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
+    @classmethod
+    def with_owner(
+        cls, owner_id: uuid.UUID, *, name: str, timezone: str, now: datetime
+    ) -> tuple["Household", "Membership"]:
+        """A new, empty household and its owner's membership (not yet in a session)."""
+        household = cls(id=uuid.uuid4(), name=name, timezone=timezone, created_at=now)
+        owner = Membership(
+            user_id=owner_id, household_id=household.id, role=Role.OWNER, joined_at=now
+        )
+        return household, owner
+
 
 class Membership(Base):
     """A user's place in a household. user_id is the key: one household per user (MVP)."""

@@ -90,14 +90,8 @@ class AuthService:
         user = User(
             id=uuid.uuid4(), email=email, password_hash=hash_password(password), created_at=now
         )
-        household = Household(
-            id=uuid.uuid4(),
-            name=household_name,
-            timezone=self._settings.default_timezone,
-            created_at=now,
-        )
-        membership = Membership(
-            user_id=user.id, household_id=household.id, role=Role.OWNER, joined_at=now
+        household, membership = Household.with_owner(
+            user.id, name=household_name, timezone=self._settings.default_timezone, now=now
         )
         try:
             self._users.add(user)
