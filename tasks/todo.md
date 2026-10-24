@@ -328,11 +328,11 @@ differ, the target amount is converted at the rate on the operation date (or ent
 explicitly); both amounts are stored.
 
 **Acceptance criteria:**
-- [ ] BYN → RUB transfer stores both amounts; balances of both accounts change
-- [ ] Transfer to the same account or to a foreign household's account is rejected (422 / 404)
+- [x] BYN → RUB transfer stores both amounts; balances of both accounts change
+- [x] Transfer to the same account or to a foreign household's account is rejected (422 / 404)
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_transfers.py`
+- [x] `uv run pytest tests/integration/test_transfers.py`
 
 **Dependencies:** Task 14
 **Files likely touched:** `models/ledger.py`, `services/operations.py`,
