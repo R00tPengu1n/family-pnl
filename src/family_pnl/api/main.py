@@ -15,6 +15,7 @@ from family_pnl.api.routers import (
     accounts,
     auth,
     bot,
+    budgets,
     categories,
     fx,
     health,
@@ -66,4 +67,5 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
     app.include_router(accounts.router)
     app.include_router(categories.router)
     app.include_router(operations.router)
+    app.include_router(budgets.router)
     return app
