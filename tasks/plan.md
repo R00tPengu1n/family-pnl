@@ -60,7 +60,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 - [x] Task 5: Refresh token rotation and logout
 - [x] Task 6: Login rate limiting in Redis
 - [x] Task 7: Invites, members list and the isolation test helper
-- [ ] Task 8: Telegram linking and bot authentication (API side)
+- [x] Task 8: Telegram linking and bot authentication (API side)
 
 ### Checkpoint 1: identity
 - [ ] Two users in one household, a third user isolated (404) — covered by tests

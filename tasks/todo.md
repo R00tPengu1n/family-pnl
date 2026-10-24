@@ -181,12 +181,12 @@ bot-only endpoints protected by a service secret: `POST /bot/link` (code + Teleg
 (Telegram-only account, see plan Open Question 1). ADR-0007.
 
 **Acceptance criteria:**
-- [ ] Linking binds exactly one Telegram id to one user; reused or expired code → 400
-- [ ] Bot endpoints without a valid service secret → 401
-- [ ] A token issued via `/auth/telegram` has the same permissions as a normal user token
+- [x] Linking binds exactly one Telegram id to one user; reused or expired code → 400
+- [x] Bot endpoints without a valid service secret → 401
+- [x] A token issued via `/auth/telegram` has the same permissions as a normal user token
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_telegram_link.py`
+- [x] `uv run pytest tests/integration/test_telegram_link.py`
 
 **Dependencies:** Tasks 5, 7
 **Files likely touched:** `models/identity.py`, `services/telegram_link.py`,
