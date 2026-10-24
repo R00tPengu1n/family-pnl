@@ -41,6 +41,14 @@ class LoginRequest(BaseModel):
     password: str = Password
 
 
+class RefreshRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"refresh_token": "kq3V0n7oQ5u2Xc..."}]}
+    )
+
+    refresh_token: str = Field(min_length=1, max_length=256)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
