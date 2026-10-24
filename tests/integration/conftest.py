@@ -28,6 +28,7 @@ from family_pnl.core.clock import FrozenClock
 from family_pnl.core.config import Environment, Settings
 from family_pnl.core.db import create_engine
 from family_pnl.core.redis import create_redis
+from family_pnl.services.rate_limit import LoginRateLimiter
 
 ALEMBIC_INI = str(Path(__file__).resolve().parents[2] / "alembic.ini")
 
@@ -108,6 +109,11 @@ def settings(migrated_database_url: str, redis_url: str) -> Settings:
         jwt_secret=SecretStr("integration-tests-jwt-secret-32-chars-min"),
         redis_url=SecretStr(redis_url),
     )
+
+
+@pytest.fixture
+def login_limiter(redis: Redis, settings: Settings) -> LoginRateLimiter:
+    return LoginRateLimiter(redis, settings)
 
 
 @pytest.fixture

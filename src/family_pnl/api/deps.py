@@ -5,12 +5,14 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from family_pnl.core.clock import Clock
 from family_pnl.core.config import Settings
 from family_pnl.core.errors import AuthenticationError
 from family_pnl.services.auth import AuthService, CurrentUser
+from family_pnl.services.rate_limit import LoginRateLimiter
 
 # auto_error=False: a missing header goes through our error format, not FastAPI's 403.
 _bearer = HTTPBearer(auto_error=False, description="Access token from POST /auth/login")
@@ -38,12 +40,23 @@ def get_settings(request: Request) -> Settings:
     return settings
 
 
+def get_redis(request: Request) -> "Redis":
+    redis: Redis = request.app.state.redis
+    return redis
+
+
 def get_auth_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     clock: Annotated[Clock, Depends(get_clock)],
     settings: Annotated[Settings, Depends(get_settings)],
+    redis: Annotated["Redis", Depends(get_redis)],
 ) -> AuthService:
-    return AuthService(session, clock, settings)
+    return AuthService(session, clock, settings, LoginRateLimiter(redis, settings))
+
+
+def get_client_ip(request: Request) -> str:
+    # The direct peer. Behind a reverse proxy uvicorn's --proxy-headers sets it (Task 35).
+    return request.client.host if request.client is not None else "unknown"
 
 
 async def get_current_user(
@@ -57,3 +70,4 @@ async def get_current_user(
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+ClientIpDep = Annotated[str, Depends(get_client_ip)]

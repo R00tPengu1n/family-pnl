@@ -26,6 +26,7 @@ from family_pnl.repositories.identity import (
     RefreshTokenRepository,
     UserRepository,
 )
+from family_pnl.services.rate_limit import LoginRateLimiter
 
 
 class EmailTakenError(ConflictError):
@@ -61,8 +62,15 @@ class TokenPair:
 
 
 class AuthService:
-    def __init__(self, session: AsyncSession, clock: Clock, settings: Settings) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        clock: Clock,
+        settings: Settings,
+        login_limiter: LoginRateLimiter,
+    ) -> None:
         self._session = session
+        self._login_limiter = login_limiter
         self._clock = clock
         self._settings = settings
         self._users = UserRepository(session)
@@ -102,11 +110,15 @@ class AuthService:
             raise EmailTakenError("An account with this email already exists") from exc
         return _current_user(user, membership, household)
 
-    async def login(self, email: str, password: str) -> TokenPair:
+    async def login(self, email: str, password: str, *, ip: str) -> TokenPair:
+        # Checked before hashing: refused attempts cost no argon2 work.
+        await self._login_limiter.check(email, ip)
         user = await self._users.get_by_email(normalize_email(email))
         password_hash = user.password_hash if user is not None else None
         if not verify_password_or_dummy(password_hash, password) or user is None:
+            await self._login_limiter.record_failure(email, ip)
             raise InvalidCredentialsError("Email or password is incorrect")
+        await self._login_limiter.reset_email(email)
         tokens = self._issue_tokens(user.id, family_id=uuid.uuid4())
         await self._session.commit()
         return tokens
