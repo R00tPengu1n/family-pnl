@@ -225,11 +225,11 @@ derivation through BYN, single rounding step. Pure domain, no I/O.
 `httpx.MockTransport`; network errors raise a typed `RateSourceUnavailable`.
 
 **Acceptance criteria:**
-- [ ] Parses USD and RUB rates for a given date into BYN-per-unit `Decimal`
-- [ ] Timeouts and 5xx raise `RateSourceUnavailable`
+- [x] Parses USD and RUB rates for a given date into BYN-per-unit `Decimal`
+- [x] Timeouts and 5xx raise `RateSourceUnavailable`
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_nbrb_client.py`
+- [x] `uv run pytest tests/integration/test_nbrb_client.py`
 
 **Dependencies:** Task 9
 **Files likely touched:** `integrations/nbrb.py`, `tests/fixtures/nbrb/*.json`, tests

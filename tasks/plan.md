@@ -67,7 +67,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 
 ### Phase 2: fx
 - [x] Task 9: Currency, Money and cross-rate domain
-- [ ] Task 10: NBRB client with recorded responses
+- [x] Task 10: NBRB client with recorded responses
 - [ ] Task 11: Rate storage, rate service and `GET /fx/rates`
 
 ### Checkpoint 2: fx
