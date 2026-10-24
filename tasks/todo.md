@@ -437,11 +437,11 @@ time zone; per-member display currency and default input currency (plan Open Que
 `GET/PATCH /household/settings` and `GET/PATCH /me/settings`.
 
 **Acceptance criteria:**
-- [ ] Only the owner changes household settings; members change only their own
-- [ ] Balances endpoint returns totals in the member's display currency
+- [x] Only the owner changes household settings; members change only their own
+- [x] Balances endpoint returns totals in the member's display currency
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_settings.py`
+- [x] `uv run pytest tests/integration/test_settings.py`
 
 **Dependencies:** Task 16
 **Files likely touched:** `models/identity.py`, `services/settings.py`,
