@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -6,12 +7,14 @@ import pytest
 from family_pnl.core.errors import PermissionDeniedError
 from family_pnl.domain.budgets import (
     DEFAULT_WINDOW,
+    THRESHOLDS,
     ApprovalWindow,
     BudgetStatus,
     first_of_month,
     local_today,
     next_month,
     previous_month,
+    reached_thresholds,
     require_budget_approver,
     require_budget_editor,
 )
@@ -179,3 +182,28 @@ def test_next_and_previous_month_are_inverse_for_every_month(month: int) -> None
 
     assert previous_month(next_month(first)) == first
     assert next_month(previous_month(first)) == first
+
+
+def test_thresholds_are_80_and_100_percent() -> None:
+    assert THRESHOLDS == (80, 100)
+
+
+@pytest.mark.parametrize(
+    ("spent", "limit", "reached"),
+    [
+        ("0", "100", ()),
+        ("79.99", "100", ()),
+        ("80", "100", (80,)),
+        ("99.99", "100", (80,)),
+        ("100", "100", (80, 100)),
+        ("250", "100", (80, 100)),
+        ("0.08", "0.10", (80,)),
+    ],
+)
+def test_reached_thresholds(spent: str, limit: str, reached: tuple[int, ...]) -> None:
+    assert reached_thresholds(Decimal(spent), Decimal(limit)) == reached
+
+
+def test_a_non_positive_limit_is_rejected() -> None:
+    with pytest.raises(ValueError, match=r"^limit must be positive, got 0$"):
+        reached_thresholds(Decimal("5"), Decimal("0"))
