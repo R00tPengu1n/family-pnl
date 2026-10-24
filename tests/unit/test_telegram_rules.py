@@ -45,6 +45,18 @@ def test_typed_codes_are_normalised(typed: str) -> None:
     assert normalize_link_code(typed) == "K7Q2M9XD"
 
 
+@pytest.mark.parametrize("dash", [0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015])
+def test_every_unicode_dash_from_hyphen_to_horizontal_bar_is_a_separator(dash: int) -> None:
+    assert normalize_link_code(f"K7Q2{chr(dash)}M9XD") == "K7Q2M9XD"
+
+
+@pytest.mark.parametrize("neighbour", [0x200F, 0x2016])
+def test_characters_next_to_the_dash_range_are_not_separators(neighbour: int) -> None:
+    # U+200F (right-to-left mark) and U+2016 (double vertical line) bound the range.
+    with pytest.raises(LinkCodeInvalidError):
+        normalize_link_code(f"K7Q2{chr(neighbour)}M9XD")
+
+
 @pytest.mark.parametrize("typed", ["", "K7Q2-M9X", "K7Q2-M9XD1", "K7Q2-M9X0", "K7Q2-M9XI"])
 def test_codes_of_the_wrong_shape_are_invalid(typed: str) -> None:
     with pytest.raises(LinkCodeInvalidError) as info:
