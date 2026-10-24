@@ -1,11 +1,28 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from family_pnl.domain.currency import Currency
-from family_pnl.domain.ledger import DEFAULT_CATEGORIES, AccountType, CategoryKind, category_key
+from family_pnl.domain.ledger import (
+    DEFAULT_CATEGORIES,
+    AccountType,
+    CategoryKind,
+    OperationType,
+    category_key,
+)
 from family_pnl.models.base import Base
 from family_pnl.models.types import checked_enum, currency_column
 
@@ -69,3 +86,27 @@ class Category(Base):
             )
             for kind, name in DEFAULT_CATEGORIES
         ]
+
+
+class Operation(Base):
+    """An income or an expense: the original amount and currency as entered."""
+
+    __tablename__ = "operations"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="amount_positive"),
+        Index("ix_operations_household_date", "household_id", "operation_date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("households.id", ondelete="CASCADE"))
+    type: Mapped[OperationType] = mapped_column(checked_enum(OperationType, "operation_type"))
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    currency: Mapped[Currency] = mapped_column(currency_column())
+    # A calendar date in the household time zone, not a moment in time.
+    operation_date: Mapped[date] = mapped_column(Date)
+    account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"), index=True)
+    category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("categories.id"), index=True)
+    comment: Mapped[str | None] = mapped_column(String(500))
+    author_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
