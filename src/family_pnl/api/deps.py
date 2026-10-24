@@ -13,6 +13,7 @@ from family_pnl.core.clock import Clock
 from family_pnl.core.config import Settings
 from family_pnl.core.errors import AuthenticationError
 from family_pnl.integrations.nbrb import NbrbClient
+from family_pnl.services.accounts import AccountService
 from family_pnl.services.auth import AuthService, CurrentUser
 from family_pnl.services.fx import RateService, RateSource
 from family_pnl.services.households import HouseholdService
@@ -105,6 +106,13 @@ def get_rate_service(
     return RateService(session, source, clock)
 
 
+def get_account_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    clock: Annotated[Clock, Depends(get_clock)],
+) -> AccountService:
+    return AccountService(session, clock)
+
+
 def get_client_ip(request: Request) -> str:
     # The direct peer. Behind a reverse proxy uvicorn's --proxy-headers sets it (Task 35).
     return request.client.host if request.client is not None else "unknown"
@@ -126,3 +134,4 @@ HouseholdServiceDep = Annotated[HouseholdService, Depends(get_household_service)
 TelegramServiceDep = Annotated[TelegramService, Depends(get_telegram_service)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
 RateServiceDep = Annotated[RateService, Depends(get_rate_service)]
+AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]

@@ -12,6 +12,7 @@ from family_pnl.domain.permissions import (
     InviteInvalidError,
     check_can_join,
     check_invite_usable,
+    require_account_editor,
     require_owner,
 )
 
@@ -60,12 +61,22 @@ def test_expired_or_redeemed_invite_is_invalid(
 
 
 def test_a_user_alone_in_their_household_can_join_another() -> None:
-    check_can_join(current_household_id=HOME, members_in_current=1, invite_household_id=OTHER)
+    check_can_join(
+        current_household_id=HOME,
+        members_in_current=1,
+        invite_household_id=OTHER,
+        has_accounts=False,
+    )
 
 
 def test_joining_your_own_household_is_a_conflict() -> None:
     with pytest.raises(AlreadyMemberError) as info:
-        check_can_join(current_household_id=HOME, members_in_current=1, invite_household_id=HOME)
+        check_can_join(
+            current_household_id=HOME,
+            members_in_current=1,
+            invite_household_id=HOME,
+            has_accounts=False,
+        )
 
     assert info.value.code == "already_member"
     assert info.value.message == "You are already a member of this household"
@@ -76,10 +87,64 @@ def test_joining_your_own_household_is_a_conflict() -> None:
 def test_leaving_a_household_with_other_members_is_a_conflict(members: int) -> None:
     with pytest.raises(HouseholdNotEmptyError) as info:
         check_can_join(
-            current_household_id=HOME, members_in_current=members, invite_household_id=OTHER
+            current_household_id=HOME,
+            members_in_current=members,
+            invite_household_id=OTHER,
+            has_accounts=False,
         )
 
     assert info.value.code == "household_not_empty"
     assert info.value.message == (
         "You share your household with other members; one household per user is supported"
+    )
+
+
+ANNA = uuid.uuid4()
+IVAN = uuid.uuid4()
+
+
+@pytest.mark.parametrize(
+    ("actor", "role", "account_user", "allowed"),
+    [
+        (ANNA, Role.MEMBER, ANNA, True),  # her own personal account
+        (IVAN, Role.MEMBER, ANNA, False),  # another member's personal account
+        (IVAN, Role.OWNER, ANNA, True),  # the household owner edits any account
+        (ANNA, Role.MEMBER, None, False),  # shared accounts: owner only
+        (IVAN, Role.OWNER, None, True),
+    ],
+    ids=["own", "other-member", "owner-on-personal", "member-on-shared", "owner-on-shared"],
+)
+def test_who_may_change_an_account(
+    actor: uuid.UUID, role: Role, account_user: uuid.UUID | None, allowed: bool
+) -> None:
+    if allowed:
+        require_account_editor(actor_id=actor, role=role, account_user_id=account_user)
+    else:
+        with pytest.raises(PermissionDeniedError) as info:
+            require_account_editor(actor_id=actor, role=role, account_user_id=account_user)
+        assert (
+            info.value.message == "Only its holder or the household owner can change this account"
+        )
+
+
+def test_only_the_owner_creates_shared_accounts() -> None:
+    require_owner(Role.OWNER, "create shared accounts")
+
+    with pytest.raises(PermissionDeniedError) as info:
+        require_owner(Role.MEMBER, "create shared accounts")
+
+    assert info.value.message == "Only the household owner can create shared accounts"
+
+
+def test_a_household_with_accounts_cannot_be_left() -> None:
+    with pytest.raises(HouseholdNotEmptyError) as info:
+        check_can_join(
+            current_household_id=HOME,
+            members_in_current=1,
+            invite_household_id=OTHER,
+            has_accounts=True,
+        )
+
+    assert info.value.message == (
+        "Your household already has accounts; one household per user is supported"
     )

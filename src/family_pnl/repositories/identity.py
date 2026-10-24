@@ -7,6 +7,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from family_pnl.models import (
+    Account,
     Household,
     Invite,
     Membership,
@@ -82,6 +83,12 @@ class HouseholdRepository:
             select(Membership).where(Membership.user_id == user_id).with_for_update()
         )
         return result.one()
+
+    async def has_accounts(self, household_id: uuid.UUID) -> bool:
+        found = await self._session.scalar(
+            select(Account.id).where(Account.household_id == household_id).limit(1)
+        )
+        return found is not None
 
     async def delete(self, household_id: uuid.UUID) -> None:
         await self._session.execute(delete(Household).where(Household.id == household_id))

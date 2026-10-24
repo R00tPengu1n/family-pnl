@@ -75,6 +75,7 @@ class HouseholdService:
             current_household_id=previous_household,
             members_in_current=await self._households.count_members(previous_household),
             invite_household_id=invite.household_id,
+            has_accounts=await self._households.has_accounts(previous_household),
         )
 
         membership.household_id = invite.household_id

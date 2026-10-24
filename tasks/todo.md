@@ -272,11 +272,12 @@ visible to the household and editable by the creator and the owner; shared accou
 the owner.
 
 **Acceptance criteria:**
-- [ ] Member cannot edit another member's personal account (403); foreign household → 404
-- [ ] Account currency cannot change after operations exist (409)
+- [x] Member cannot edit another member's personal account (403); foreign household → 404
+- [x] Account currency cannot change at all (422): stricter than "after operations", so
+      balances and conversions always use one currency per account
 
 **Verification:**
-- [ ] `uv run pytest tests/unit/test_permissions.py tests/integration/test_accounts.py`
+- [x] `uv run pytest tests/unit/test_permissions.py tests/integration/test_accounts.py`
 
 **Dependencies:** Task 7
 **Files likely touched:** `models/ledger.py`, `domain/permissions.py`,
