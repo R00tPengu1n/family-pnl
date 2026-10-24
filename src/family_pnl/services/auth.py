@@ -47,7 +47,9 @@ logger = structlog.get_logger(__name__)
 @dataclass(frozen=True, slots=True)
 class CurrentUser:
     id: uuid.UUID
-    email: str
+    email: str | None
+    display_name: str | None
+    telegram_linked: bool
     role: Role
     household_id: uuid.UUID
     household_name: str
@@ -197,6 +199,8 @@ def _current_user(user: User, membership: Membership, household: Household) -> C
     return CurrentUser(
         id=user.id,
         email=user.email,
+        display_name=user.display_name,
+        telegram_linked=user.telegram_id is not None,
         role=membership.role,
         household_id=household.id,
         household_name=household.name,

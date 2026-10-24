@@ -24,12 +24,17 @@ class InviteResponse(BaseModel):
 
 class MemberOut(BaseModel):
     user_id: uuid.UUID
-    email: str
+    email: str | None
+    display_name: str | None
     role: Role
     joined_at: datetime
 
     @classmethod
     def of(cls, member: Member) -> "MemberOut":
         return cls(
-            user_id=member.user_id, email=member.email, role=member.role, joined_at=member.joined_at
+            user_id=member.user_id,
+            email=member.email,
+            display_name=member.display_name,
+            role=member.role,
+            joined_at=member.joined_at,
         )

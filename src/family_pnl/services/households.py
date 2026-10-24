@@ -30,7 +30,8 @@ class IssuedInvite:
 @dataclass(frozen=True, slots=True)
 class Member:
     user_id: uuid.UUID
-    email: str
+    email: str | None
+    display_name: str | None
     role: Role
     joined_at: datetime
 
@@ -90,5 +91,12 @@ class HouseholdService:
     async def list_members(self, user: CurrentUser) -> list[Member]:
         rows = await self._households.list_members(user.household_id)
         return [
-            Member(user_id=u.id, email=u.email, role=m.role, joined_at=m.joined_at) for m, u in rows
+            Member(
+                user_id=u.id,
+                email=u.email,
+                display_name=u.display_name,
+                role=m.role,
+                joined_at=m.joined_at,
+            )
+            for m, u in rows
         ]
