@@ -208,11 +208,11 @@ bot-only endpoints protected by a service secret: `POST /bot/link` (code + Teleg
 derivation through BYN, single rounding step. Pure domain, no I/O.
 
 **Acceptance criteria:**
-- [ ] RUB→USD and USD→RUB derived from BYN quotes with correct precision
-- [ ] Rounding happens once with `ROUND_HALF_UP`; `float` input is rejected
+- [x] RUB→USD and USD→RUB derived from BYN quotes with correct precision
+- [x] Rounding happens once with `ROUND_HALF_UP`; `float` input is rejected
 
 **Verification:**
-- [ ] `uv run pytest tests/unit/test_money.py tests/unit/test_cross_rates.py`
+- [x] `uv run pytest tests/unit/test_money.py tests/unit/test_cross_rates.py`
 
 **Dependencies:** Task 1
 **Files likely touched:** `domain/currency.py`, `domain/money.py`, `domain/fx.py`, tests

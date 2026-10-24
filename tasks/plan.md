@@ -66,7 +66,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 - [ ] Two users in one household, a third user isolated (404) — covered by tests
 
 ### Phase 2: fx
-- [ ] Task 9: Currency, Money and cross-rate domain
+- [x] Task 9: Currency, Money and cross-rate domain
 - [ ] Task 10: NBRB client with recorded responses
 - [ ] Task 11: Rate storage, rate service and `GET /fx/rates`
 

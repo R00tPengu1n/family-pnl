@@ -241,12 +241,13 @@ class Money:
     amount: Decimal
     currency: Currency
 
-    def convert(self, rate: Decimal, target: Currency) -> "Money":
-        """Convert using `rate` = units of `target` per one unit of `self.currency`."""
-        if self.currency is target:
-            return self
-        return Money((self.amount * rate).quantize(CENT, ROUND_HALF_UP), target)
+    def rounded(self) -> "Money":
+        """The single rounding step, applied at the end of a calculation."""
+        return Money(self.amount.quantize(CENT, ROUND_HALF_UP), self.currency)
 ```
+
+Conversions (`domain.fx.convert`) stay exact and are rounded once by the caller: rounding
+each conversion would make sums of many small operations drift.
 
 ## Testing Strategy
 
