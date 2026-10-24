@@ -13,11 +13,12 @@ from family_pnl.models.identity import (
     TelegramLinkCode,
     User,
 )
-from family_pnl.models.ledger import Account
+from family_pnl.models.ledger import Account, Category
 
 __all__ = [
     "Account",
     "Base",
+    "Category",
     "FxRate",
     "Household",
     "Invite",

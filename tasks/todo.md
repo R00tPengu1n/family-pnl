@@ -291,11 +291,11 @@ in the same transaction as the household (registration and Telegram registration
 `GET/POST /categories`, rename/archive.
 
 **Acceptance criteria:**
-- [ ] A new household has the default income and expense categories
-- [ ] Category names are unique per household and kind (case-insensitive)
+- [x] A new household has the default income and expense categories
+- [x] Category names are unique per household and kind (case-insensitive)
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_categories.py`
+- [x] `uv run pytest tests/integration/test_categories.py`
 
 **Dependencies:** Task 7
 **Files likely touched:** `models/ledger.py`, `repositories/categories.py`,

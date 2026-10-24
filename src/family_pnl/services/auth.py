@@ -20,7 +20,7 @@ from family_pnl.core.security import (
     verify_password_or_dummy,
 )
 from family_pnl.domain.identity import Role, check_password_policy, normalize_email
-from family_pnl.models import Household, Membership, RefreshToken, User
+from family_pnl.models import Category, Household, Membership, RefreshToken, User
 from family_pnl.repositories.identity import (
     HouseholdRepository,
     RefreshTokenRepository,
@@ -99,6 +99,7 @@ class AuthService:
             # The rows the membership references are inserted first.
             await self._session.flush()
             self._households.add_member(membership)
+            self._session.add_all(Category.defaults_for(household.id, now))
             await self._session.commit()
         except IntegrityError as exc:
             # Two registrations with one email raced past the check above.
