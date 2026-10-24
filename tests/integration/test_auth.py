@@ -165,3 +165,14 @@ async def test_each_registered_user_gets_a_separate_household(client: AsyncClien
     ivan = await register(client, "ivan@example.com")
 
     assert anna["household"]["id"] != ivan["household"]["id"]
+
+
+async def test_household_name_is_trimmed_and_must_not_be_blank(client: AsyncClient) -> None:
+    trimmed = await register(client, "anna@example.com", household_name="  Ivanovs  ")
+    blank = await client.post(
+        "/auth/register",
+        json={"email": "ivan@example.com", "password": PASSWORD, "household_name": "   "},
+    )
+
+    assert trimmed["household"]["name"] == "Ivanovs"
+    assert blank.status_code == 422

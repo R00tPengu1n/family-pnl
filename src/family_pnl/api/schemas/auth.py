@@ -1,7 +1,7 @@
 import uuid
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
 
 from family_pnl.domain.identity import MAX_PASSWORD_LENGTH, Role
 from family_pnl.services.auth import CurrentUser, TokenPair
@@ -25,7 +25,9 @@ class RegisterRequest(BaseModel):
 
     email: EmailStr
     password: str = Password
-    household_name: str = Field(default="Family", min_length=1, max_length=100)
+    household_name: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)
+    ] = "Family"
 
 
 class LoginRequest(BaseModel):
