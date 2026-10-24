@@ -41,6 +41,12 @@ class ValidationFailedError(DomainError):
     code = "validation_failed"
 
 
+class UnavailableError(DomainError):
+    """A dependency the request needs is down and there is no usable fallback."""
+
+    code = "unavailable"
+
+
 class RateLimitedError(DomainError):
     """Too many attempts; the client may retry after `retry_after` seconds."""
 
