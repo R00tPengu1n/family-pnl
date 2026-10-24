@@ -516,12 +516,12 @@ and returns errors with row numbers. Size and row limits.
 logging); cron job refreshing the current NBRB rates once a day.
 
 **Acceptance criteria:**
-- [ ] Job stores today's rates; on NBRB failure logs a warning and does not crash
-- [ ] Job is idempotent when run twice a day
+- [x] Job stores today's rates; on NBRB failure logs a warning and does not crash
+- [x] Job is idempotent when run twice a day
 
 **Verification:**
-- [ ] `uv run pytest tests/worker/test_rate_refresh.py`
-- [ ] Manual: `uv run arq family_pnl.worker.settings.WorkerSettings` starts against local Redis
+- [x] `uv run pytest tests/integration/worker/test_rate_refresh.py` (worker tests need the integration database fixtures)
+- [x] Manual: `uv run arq family_pnl.worker.settings.WorkerSettings` starts against local Redis
 
 **Dependencies:** Task 11
 **Files likely touched:** `worker/settings.py`, `worker/jobs/fx.py`, tests
@@ -538,7 +538,7 @@ linked users and marks them sent; retries with backoff on failure.
 - [ ] Users without a linked Telegram are skipped with a log entry
 
 **Verification:**
-- [ ] `uv run pytest tests/worker/test_notification_delivery.py`
+- [ ] `uv run pytest tests/integration/worker/test_notification_delivery.py`
 
 **Dependencies:** Tasks 19, 24
 **Files likely touched:** `integrations/telegram.py`, `worker/jobs/notifications.py`,
@@ -557,7 +557,7 @@ not approved and keep reminding.
 - [ ] After the window ends the budget is marked not approved and reminders continue
 
 **Verification:**
-- [ ] `uv run pytest tests/worker/test_budget_reminders.py`
+- [ ] `uv run pytest tests/integration/worker/test_budget_reminders.py`
 
 **Dependencies:** Task 25
 **Files likely touched:** `worker/jobs/budgets.py`, `services/budgets.py`, migration (flag), tests
