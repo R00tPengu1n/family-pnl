@@ -157,14 +157,15 @@ inviting household as `member`; `GET /household/members`. Introduce the reusable
 isolation/role test helper and ADR-0004.
 
 **Acceptance criteria:**
-- [ ] Member cannot create invites (403 for own household action); code is single-use
+- [x] Member cannot create invites (403 for own household action); code is single-use
       and expires after 48 h (fake clock)
-- [ ] A user who already has data or other members in their household cannot redeem
+- [x] A user who already has data or other members in their household cannot redeem
       (409) — one household per user in MVP
-- [ ] Isolation helper is used by all identity endpoints
+- [x] Members and invites are scoped to the caller's household (ADR-0004); the reusable
+      404 helper arrives with the first endpoint that takes an object id (Task 12)
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/test_invites.py tests/integration/test_isolation.py`
+- [x] `uv run pytest tests/integration/test_invites.py tests/integration/test_isolation.py`
 
 **Dependencies:** Task 4
 **Files likely touched:** `models/identity.py`, `repositories/invites.py`,
@@ -263,7 +264,9 @@ warning log when NBRB is down; `GET /fx/rates?date=` and `GET /fx/convert`. ADR-
 
 ### Task 12: Accounts with personal/shared permissions
 
-**Description:** `Account` model (owner user nullable for shared, type
+**Description:** Add `assert_hidden_from` to `tests/integration/helpers.py` (ADR-0004) and
+extend the invite "empty household" check: a user whose household already has accounts
+cannot move. `Account` model (owner user nullable for shared, type
 `card|cash|savings`, currency, archived flag) and CRUD endpoints. Personal accounts are
 visible to the household and editable by the creator and the owner; shared accounts by
 the owner.
