@@ -15,7 +15,13 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from family_pnl.core.clock import Clock
-from family_pnl.domain.notifications import gives_up, retry_delay, threshold_message
+from family_pnl.domain.identity import Role
+from family_pnl.domain.notifications import (
+    gives_up,
+    reminder_message,
+    retry_delay,
+    threshold_message,
+)
 from family_pnl.integrations.telegram import (
     TelegramChatUnavailableError,
     TelegramSender,
@@ -26,6 +32,7 @@ from family_pnl.repositories.identity import HouseholdRepository
 from family_pnl.repositories.ledger import CategoryRepository
 from family_pnl.repositories.notifications import NotificationRepository
 from family_pnl.services.budget_execution import THRESHOLD_KIND
+from family_pnl.services.budget_reminders import REMINDER_KIND
 
 logger = structlog.get_logger(__name__)
 
@@ -85,14 +92,22 @@ class NotificationDelivery:
         log.warning("notification_postponed", attempts=notification.attempts, error=error)
 
     async def _recipients(self, notification: Notification) -> list[User]:
-        # Budget thresholds concern everyone who spends from the budget.
+        # Thresholds concern everyone who spends from the budget; approval, the owner.
         members = await self._households.list_members(notification.household_id)
+        if notification.kind == REMINDER_KIND:
+            return [user for membership, user in members if membership.role is Role.OWNER]
         return [user for _, user in members]
 
     async def _text(self, notification: Notification) -> str | None:
+        payload = notification.payload
+        if notification.kind == REMINDER_KIND:
+            return reminder_message(
+                month=payload["month"],
+                window_closes=payload["window_closes"],
+                missed=payload["missed"],
+            )
         if notification.kind != THRESHOLD_KIND:
             return None
-        payload = notification.payload
         category = await self._categories.get(
             notification.household_id, uuid.UUID(payload["category_id"])
         )

@@ -28,3 +28,10 @@ def threshold_message(
         f"Бюджет {month}, «{category}»: потрачено {spent} из {limit} {currency} — "
         f"{threshold}% лимита."
     )
+
+
+def reminder_message(*, month: str, window_closes: str, missed: bool) -> str:
+    """The daily text the owner gets while a budget is not approved."""
+    if missed:
+        return f"Бюджет на {month} не утверждён: окно утверждения закрылось {window_closes}."
+    return f"Бюджет на {month} ещё не утверждён. Окно утверждения открыто до {window_closes}."

@@ -100,3 +100,32 @@ def reached_thresholds(spent: Decimal, limit: Decimal) -> tuple[int, ...]:
     if limit <= 0:
         raise ValueError(f"limit must be positive, got {limit}")
     return tuple(t for t in THRESHOLDS if spent * 100 >= limit * t)
+
+
+def approval_missed(*, status: BudgetStatus, today: date, window_closes: date) -> bool:
+    """A budget the window closed on without approval is marked not approved."""
+    return status is not BudgetStatus.APPROVED and today > window_closes
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalReminder:
+    month: date
+    window_closes: date
+    missed: bool  # the window has closed; the budget stays not approved until approved
+
+
+def due_reminders(
+    *, today: date, window: ApprovalWindow, approved: frozenset[date]
+) -> list[ApprovalReminder]:
+    """What the owner is reminded of today: budgets whose window has opened, not approved.
+
+    That is the next month's budget from the day its window opens, and the current month's
+    budget if its window (last month) closed without approval.
+    """
+    current = first_of_month(today)
+    reminders = []
+    for month in (current, next_month(current)):
+        opens, closes = window.bounds(month)
+        if today >= opens and month not in approved:
+            reminders.append(ApprovalReminder(month, closes, missed=today > closes))
+    return reminders

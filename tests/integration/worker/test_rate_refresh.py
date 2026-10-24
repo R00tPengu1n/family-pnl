@@ -134,7 +134,7 @@ def test_worker_settings_come_from_the_configuration(
         shutdown,
         UTC,
     )
-    rates, delivery = found["cron_jobs"]
+    rates, delivery, reminders = found["cron_jobs"]
     assert (rates.name, rates.hour, rates.minute, rates.unique) == (
         "cron:refresh_rates",
         {21, 6},
@@ -147,6 +147,11 @@ def test_worker_settings_come_from_the_configuration(
         None,
         None,
         0,
+    )
+    assert (reminders.name, reminders.hour, reminders.minute) == (
+        "cron:send_budget_reminders",
+        None,
+        5,
     )
 
 

@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from family_pnl.api.schemas.operations import Amount
 from family_pnl.domain.budgets import BudgetStatus
@@ -27,6 +27,7 @@ class WindowOut(BaseModel):
     opens: date
     closes: date
     open: bool
+    missed: bool = Field(description="Closed without approval: not approved")
 
 
 class BudgetOut(BaseModel):
@@ -49,7 +50,10 @@ class BudgetOut(BaseModel):
                 for lim in view.limits
             ],
             window=WindowOut(
-                opens=view.window_opens, closes=view.window_closes, open=view.window_open
+                opens=view.window_opens,
+                closes=view.window_closes,
+                open=view.window_open,
+                missed=view.approval_missed,
             ),
         )
 

@@ -14,6 +14,7 @@ from family_pnl.core.errors import NotFoundError
 from family_pnl.domain.budgets import (
     ApprovalWindow,
     BudgetStatus,
+    approval_missed,
     local_today,
     require_budget_approver,
     require_budget_editor,
@@ -49,6 +50,7 @@ class BudgetView:
     window_opens: date
     window_closes: date
     window_open: bool
+    approval_missed: bool  # the window closed without approval
 
 
 class BudgetService:
@@ -66,15 +68,18 @@ class BudgetService:
         budget = await self._budgets.get(user.household_id, month)
         limits = [] if budget is None else await self._budgets.limits(budget.id)
         opens, closes = self._window.bounds(month)
+        status = BudgetStatus.DRAFT if budget is None else budget.status
+        today = self._today(user)
         return BudgetView(
             month=month,
             currency=user.household_base_currency if budget is None else budget.currency,
-            status=BudgetStatus.DRAFT if budget is None else budget.status,
+            status=status,
             approved_at=None if budget is None else budget.approved_at,
             limits=[LimitView(c.id, c.name, lim.amount) for lim, c in limits],
             window_opens=opens,
             window_closes=closes,
-            window_open=self._window.is_open(self._today(user), month),
+            window_open=self._window.is_open(today, month),
+            approval_missed=approval_missed(status=status, today=today, window_closes=closes),
         )
 
     async def set_limit(

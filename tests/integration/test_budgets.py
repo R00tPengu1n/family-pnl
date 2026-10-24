@@ -56,7 +56,12 @@ async def test_a_month_without_a_budget_reads_as_an_empty_draft(
     assert found["status"] == "draft"
     assert found["currency"] == "RUB"
     assert found["limits"] == []
-    assert found["window"] == {"opens": "2026-10-20", "closes": "2026-10-30", "open": True}
+    assert found["window"] == {
+        "opens": "2026-10-20",
+        "closes": "2026-10-30",
+        "open": True,
+        "missed": False,
+    }
 
 
 async def test_a_member_sets_limits_inside_the_window(
@@ -222,3 +227,28 @@ async def test_approving_twice_keeps_the_first_approval(
     second = (await client.post(f"/budgets/{NOVEMBER}/approve", headers=anna.headers)).json()
 
     assert second["approved_at"] == first["approved_at"]
+
+
+async def test_a_window_that_closes_without_approval_marks_the_budget_not_approved(
+    client: AsyncClient, anna: Actor, clock: FrozenClock
+) -> None:
+    food = await category_id(client, anna, "Продукты")
+    await set_limit(client, anna, food, "100")
+    clock.set(datetime(2026, 10, 31, 9, 0, tzinfo=UTC))
+    anna = await log_in(client, anna.email)
+
+    missed = (await budget(client, anna))["window"]
+    await client.post(f"/budgets/{NOVEMBER}/approve", headers=anna.headers)
+    approved = (await budget(client, anna))["window"]
+
+    assert (missed["open"], missed["missed"]) == (False, True)
+    assert approved["missed"] is False
+
+
+async def test_the_last_day_of_the_window_is_not_missed_yet(
+    client: AsyncClient, anna: Actor, clock: FrozenClock
+) -> None:
+    clock.set(datetime(2026, 10, 30, 20, 0, tzinfo=UTC))  # 23:00 in Minsk
+    anna = await log_in(client, anna.email)
+
+    assert (await budget(client, anna))["window"]["missed"] is False
