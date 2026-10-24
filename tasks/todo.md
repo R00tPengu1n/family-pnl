@@ -101,12 +101,12 @@ an access token (15 min) and a refresh token (30 days); `GET /me` via a `current
 dependency.
 
 **Acceptance criteria:**
-- [ ] Registration with a duplicate email returns 409; weak/invalid input returns 422
-- [ ] Login with a wrong password returns 401 without revealing whether the email exists
-- [ ] `GET /me` returns the user with household and role; an expired token returns 401
+- [x] Registration with a duplicate email returns 409; weak/invalid input returns 422
+- [x] Login with a wrong password returns 401 without revealing whether the email exists
+- [x] `GET /me` returns the user with household and role; an expired token returns 401
 
 **Verification:**
-- [ ] `uv run pytest tests/unit/test_security.py tests/integration/test_auth.py`
+- [x] `uv run pytest tests/unit/test_security.py tests/integration/test_auth.py`
 
 **Dependencies:** Task 2
 **Files likely touched:** `models/identity.py`, `repositories/users.py`,
