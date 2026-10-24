@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Shared secret of the Telegram bot (X-Bot-Token); bot endpoints are off without it.
     bot_api_secret: SecretStr | None = None
     nbrb_base_url: str = "https://api.nbrb.by"
+    # The month's budget is prepared from this day to that day of the month before.
+    budget_window_start_day: int = Field(default=20, ge=1, le=31)
+    budget_window_end_day: int = Field(default=30, ge=1, le=31)
 
     @property
     def access_token_ttl(self) -> timedelta:

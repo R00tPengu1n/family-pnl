@@ -4,8 +4,10 @@ from datetime import datetime
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from family_pnl.domain.currency import Currency
 from family_pnl.domain.identity import Role
 from family_pnl.models.base import Base
+from family_pnl.models.types import checked_enum
 
 
 class User(Base):
@@ -33,6 +35,10 @@ class Household(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     timezone: Mapped[str] = mapped_column(String(64))
+    # Budgets and household totals use it; RUB by default (spec), changeable by the owner.
+    base_currency: Mapped[Currency] = mapped_column(
+        checked_enum(Currency, "base_currency"), default=Currency.RUB, server_default="RUB"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     @classmethod
@@ -40,7 +46,13 @@ class Household(Base):
         cls, owner_id: uuid.UUID, *, name: str, timezone: str, now: datetime
     ) -> tuple["Household", "Membership"]:
         """A new, empty household and its owner's membership (not yet in a session)."""
-        household = cls(id=uuid.uuid4(), name=name, timezone=timezone, created_at=now)
+        household = cls(
+            id=uuid.uuid4(),
+            name=name,
+            timezone=timezone,
+            base_currency=Currency.RUB,
+            created_at=now,
+        )
         owner = Membership(
             user_id=owner_id, household_id=household.id, role=Role.OWNER, joined_at=now
         )
