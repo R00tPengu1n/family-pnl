@@ -1,10 +1,15 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from family_pnl.models import Budget, BudgetLimit, Category
+from family_pnl.domain.currency import Currency
+from family_pnl.domain.ledger import OperationType
+from family_pnl.models import Budget, BudgetLimit, Category, Notification, Operation
 
 
 class BudgetRepository:
@@ -37,3 +42,66 @@ class BudgetRepository:
 
     async def delete(self, item: BudgetLimit) -> None:
         await self._session.delete(item)
+
+
+class SpendingRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def expenses(
+        self,
+        household_id: uuid.UUID,
+        *,
+        first_day: date,
+        next_first_day: date,
+        category_ids: list[uuid.UUID],
+    ) -> list[tuple[uuid.UUID, Currency, date, Decimal]]:
+        """Expense sums per category, currency and date within [first_day, next_first_day)."""
+        rows = await self._session.execute(
+            select(
+                Operation.category_id,
+                Operation.currency,
+                Operation.operation_date,
+                func.sum(Operation.amount),
+            )
+            .where(
+                Operation.household_id == household_id,
+                Operation.type == OperationType.EXPENSE,
+                Operation.category_id.in_(category_ids),
+                Operation.operation_date >= first_day,
+                Operation.operation_date < next_first_day,
+            )
+            .group_by(Operation.category_id, Operation.currency, Operation.operation_date)
+        )
+        # Expenses always have a category: ck_operations_category_unless_transfer.
+        return [(cast(uuid.UUID, row[0]), row[1], row[2], row[3]) for row in rows]
+
+
+class NotificationRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add_once(
+        self,
+        *,
+        notification_id: uuid.UUID,
+        household_id: uuid.UUID,
+        kind: str,
+        dedupe_key: str,
+        payload: dict[str, Any],
+        created_at: datetime,
+    ) -> None:
+        """Record an event unless one with the same key already exists."""
+        await self._session.execute(
+            insert(Notification)
+            .values(
+                id=notification_id,
+                household_id=household_id,
+                kind=kind,
+                dedupe_key=dedupe_key,
+                payload=payload,
+                created_at=created_at,
+                attempts=0,
+            )
+            .on_conflict_do_nothing(index_elements=["dedupe_key"])
+        )
