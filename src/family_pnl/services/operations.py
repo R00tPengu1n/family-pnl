@@ -34,6 +34,7 @@ from family_pnl.repositories.ledger import (
     OperationRepository,
 )
 from family_pnl.services.auth import CurrentUser
+from family_pnl.services.budget_execution import BudgetExecutionService
 from family_pnl.services.fx import RateService
 
 
@@ -83,6 +84,7 @@ class OperationService:
         self._operations = OperationRepository(session)
         self._accounts = AccountRepository(session)
         self._categories = CategoryRepository(session)
+        self._budgets = BudgetExecutionService(session, rates, clock)
 
     async def create(self, user: CurrentUser, new: NewOperation) -> Operation:
         source = await self._usable_account(user, new.account_id)
@@ -104,6 +106,7 @@ class OperationService:
         else:
             await self._fill_income_or_expense(user, operation, new)
         self._operations.add(operation)
+        await self._check_budget(operation)
         await self._session.commit()
         return operation
 
@@ -133,6 +136,7 @@ class OperationService:
         else:
             await self._update_income_or_expense(user, operation, changes)
         operation.updated_at = self._clock.now()
+        await self._check_budget(operation)
         await self._session.commit()
         return operation
 
@@ -141,6 +145,15 @@ class OperationService:
         require_operation_editor(actor_id=user.id, role=user.role, author_id=operation.author_id)
         await self._operations.delete(operation)
         await self._session.commit()
+
+    async def _check_budget(self, operation: Operation) -> None:
+        """Threshold notifications go into the outbox in this same transaction."""
+        if operation.type is not OperationType.EXPENSE or operation.category_id is None:
+            return
+        await self._session.flush()  # the sums must include this operation
+        await self._budgets.check_thresholds(
+            operation.household_id, operation.category_id, operation.operation_date
+        )
 
     async def _fill_income_or_expense(
         self, user: CurrentUser, operation: Operation, new: NewOperation
