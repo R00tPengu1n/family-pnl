@@ -56,3 +56,14 @@ UNDO_BUTTON = "Отменить"
 def recorded(*, income: bool, amount: str, category: str, account: str) -> str:
     kind = "Доход" if income else "Расход"
     return f"{kind} {amount} записан: «{category}», счёт «{account}»."
+
+
+NO_ACCOUNTS_YET = "Счетов пока нет. Заведите первый в приложении."
+
+
+def display_currency(code: str) -> str:
+    return f"Суммы показываются в {code}. Выберите другую валюту:"
+
+
+def currency_changed(code: str) -> str:
+    return f"Готово: отчёты и балансы теперь в {code}."
