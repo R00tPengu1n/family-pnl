@@ -26,15 +26,15 @@ fast|task|full`, pre-commit hooks (ruff, gitleaks, floor guard), a Claude Code
 post-edit hook running the fast stage, and `.gitattributes` with LF line endings.
 
 **Acceptance criteria:**
-- [ ] `uv sync` installs everything from the lock file; `pyproject.toml` configures ruff
+- [x] `uv sync` installs everything from the lock file; `pyproject.toml` configures ruff
       (line 100), mypy strict, pytest (coverage gate 85%, branch coverage) and import-linter
-- [ ] `check.ps1 -Stage fast` ≤ 10 s and `-Stage task` ≤ 90 s, as in `CONSTRAINTS.md`
-- [ ] `GET /health` returns `200 {"status": "ok"}`; `/docs` serves OpenAPI
-- [ ] A raised `DomainError` subclass is returned in the common error format
+- [x] `check.ps1 -Stage fast` ≤ 10 s and `-Stage task` ≤ 90 s, as in `CONSTRAINTS.md`
+- [x] `GET /health` returns `200 {"status": "ok"}`; `/docs` serves OpenAPI
+- [x] A raised `DomainError` subclass is returned in the common error format
 
 **Verification:**
-- [ ] `uv run pytest tests/unit tests/integration/test_health.py`
-- [ ] Manual: `uv run uvicorn family_pnl.api.main:app --reload`, open `/health` and `/docs`
+- [x] `uv run pytest tests/unit tests/integration/test_health.py`
+- [x] Manual: `uv run uvicorn family_pnl.api.main:app --reload`, open `/health` and `/docs`
 
 **Dependencies:** None
 **Files likely touched:** `pyproject.toml`, `uv.lock`, `src/family_pnl/core/*`,
