@@ -89,11 +89,26 @@ class Category(Base):
 
 
 class Operation(Base):
-    """An income or an expense: the original amount and currency as entered."""
+    """An income, an expense or a transfer, with the original amounts and currencies.
+
+    Income and expense: one account and a category. Transfer: from `account_id` (amount in
+    that account's currency) to `target_account_id` (target amount in its currency), no
+    category. The CHECK constraints keep each shape complete.
+    """
 
     __tablename__ = "operations"
     __table_args__ = (
         CheckConstraint("amount > 0", name="amount_positive"),
+        CheckConstraint(
+            "(type = 'transfer') = (category_id IS NULL)", name="category_unless_transfer"
+        ),
+        CheckConstraint(
+            "(type = 'transfer') = (target_account_id IS NOT NULL"
+            " AND target_amount IS NOT NULL AND target_currency IS NOT NULL)",
+            name="target_iff_transfer",
+        ),
+        CheckConstraint("target_amount > 0", name="target_amount_positive"),
+        CheckConstraint("target_account_id <> account_id", name="transfer_two_accounts"),
         Index("ix_operations_household_date", "household_id", "operation_date"),
     )
 
@@ -105,7 +120,14 @@ class Operation(Base):
     # A calendar date in the household time zone, not a moment in time.
     operation_date: Mapped[date] = mapped_column(Date)
     account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"), index=True)
-    category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("categories.id"), index=True)
+    category_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("categories.id"), index=True)
+    target_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("accounts.id"), index=True
+    )
+    target_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    target_currency: Mapped[Currency | None] = mapped_column(
+        checked_enum(Currency, "target_currency")
+    )
     comment: Mapped[str | None] = mapped_column(String(500))
     author_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
