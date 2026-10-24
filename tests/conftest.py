@@ -3,6 +3,9 @@ from collections.abc import Iterator
 
 import pytest
 import structlog
+from argon2 import PasswordHasher
+
+from family_pnl.core import security
 
 
 @pytest.fixture(autouse=True)
@@ -19,3 +22,16 @@ def _restore_logging() -> Iterator[None]:
         lg.handlers[:] = handlers
         lg.setLevel(level)
         lg.propagate = propagate
+
+
+@pytest.fixture(autouse=True)
+def _cheap_password_hashing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """argon2id with minimal cost: the same algorithm, ~100x faster than production settings.
+
+    Production parameters (64 MiB, 3 passes) would dominate the suite's runtime; the hashing
+    behaviour under test (salting, verification, rejection) does not depend on them.
+    """
+    monkeypatch.setattr(
+        security, "_hasher", PasswordHasher(time_cost=1, memory_cost=8, parallelism=1)
+    )
+    security._dummy_hash.cache_clear()
