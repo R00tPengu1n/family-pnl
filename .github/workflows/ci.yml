@@ -42,7 +42,10 @@ jobs:
       - name: import-linter
         run: uv run lint-imports
       - name: floor guard
-        run: uv run python scripts/floor_guard.py --base "origin/${{ github.base_ref || 'main' }}"
+        env:
+          # Event data reaches scripts through env, never interpolated into the script text.
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: uv run python scripts/floor_guard.py --base "origin/$BASE_REF"
 
   tests:
     name: Tests with PostgreSQL
@@ -136,8 +139,10 @@ jobs:
           fetch-depth: 0
       - name: Changed domain modules
         id: changes
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          changed=$(git diff --name-only --diff-filter=AM "origin/${{ github.base_ref }}...HEAD" -- 'src/family_pnl/domain/*.py' | grep -v '__init__.py$' || true)
+          changed=$(git diff --name-only --diff-filter=AM "origin/$BASE_REF...HEAD" -- 'src/family_pnl/domain/*.py' | grep -v '__init__.py$' || true)
           echo "Changed domain modules: ${changed:-none}"
           if [ -n "$changed" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; fi
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
