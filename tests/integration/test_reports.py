@@ -1,87 +1,30 @@
 """Period reports: totals and breakdowns in each member's display currency."""
 
-from datetime import UTC, date, datetime
-from decimal import Decimal
 from typing import Any
 
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from family_pnl.api.deps import get_rate_source
 from family_pnl.core.clock import FrozenClock
-from family_pnl.domain.currency import Currency
-from tests.integration.helpers import Actor, join_household, sign_up
-from tests.integration.ledger_helpers import category_id, new_account, record
-from tests.integration.test_rate_service import RATES_MONDAY, RATES_TUESDAY, TUESDAY, FakeSource
-
-SEPTEMBER_30 = date(2026, 9, 30)
-OCTOBER_1 = date(2026, 10, 1)
-TODAY = date(2026, 10, 25)
-PERIOD = "/reports?from=2026-09-01&to=2026-10-31"
+from tests.integration.helpers import Actor, sign_up
+from tests.integration.report_helpers import NOW, PERIOD, build_family, install_rates
+from tests.integration.test_rate_service import FakeSource
 
 
 @pytest.fixture
 def clock() -> FrozenClock:
-    return FrozenClock(datetime(2026, 10, 25, 9, 0, tzinfo=UTC))
+    return FrozenClock(NOW)
 
 
 @pytest.fixture
 def source(app: FastAPI) -> FakeSource:
-    fake = FakeSource(
-        {
-            SEPTEMBER_30: RATES_MONDAY,
-            OCTOBER_1: RATES_TUESDAY,
-            TUESDAY: RATES_TUESDAY,
-            TODAY: {Currency.USD: Decimal("3.0000"), Currency.RUB: Decimal("0.036000")},
-        }
-    )
-    app.dependency_overrides[get_rate_source] = lambda: fake
-    return fake
+    return install_rates(app)
 
 
 @pytest.fixture
 async def family(client: AsyncClient, source: FakeSource) -> dict[str, Any]:
-    """Anna (owner) and Ivan in a BYN household; Ivan reads reports in USD."""
-    anna = await sign_up(client, "anna@example.com")
-    ivan = await join_household(client, anna, "ivan@example.com")
-    await client.patch("/household/settings", headers=anna.headers, json={"base_currency": "BYN"})
-    await client.patch("/me/settings", headers=ivan.headers, json={"display_currency": "USD"})
-    card = await new_account(client, anna, "BYN", "Card")
-    dollars = await new_account(client, ivan, "USD", "Dollars")
-    food = await category_id(client, anna, "Продукты")
-    taxi = await category_id(client, anna, "Транспорт")
-    salary = await category_id(client, anna, "Зарплата")
-    byn = {"currency": "BYN", "account_id": card}
-    await record(client, anna, type="income", amount="2995", category_id=salary, **byn)
-    await record(client, anna, type="expense", amount="30", category_id=food, **byn)
-    await record(
-        client,
-        ivan,
-        type="expense",
-        amount="100",
-        currency="USD",
-        account_id=dollars,
-        category_id=food,
-    )
-    await record(
-        client,
-        ivan,
-        type="expense",
-        amount="50",
-        category_id=taxi,
-        operation_date="2026-09-30",
-        **byn,
-    )
-    # A transfer moves money inside the household: it is not an income or an expense.
-    await record(
-        client, anna, type="transfer", amount="10", account_id=card, target_account_id=dollars
-    )
-    response = await client.put(
-        f"/budgets/2026-10/limits/{food}", headers=anna.headers, json={"amount": "400"}
-    )
-    assert response.status_code == 200, response.text
-    return {"anna": anna, "ivan": ivan, "food": food, "taxi": taxi, "salary": salary}
+    return await build_family(client)
 
 
 async def report(client: AsyncClient, actor: Actor, path: str = PERIOD) -> dict[str, Any]:
