@@ -85,7 +85,7 @@ Decisions below are recorded as ADRs in `docs/adr/` in the task that introduces 
 
 ### Phase 4: budgets
 - [x] Task 17: Budget approval window domain logic
-- [ ] Task 18: Budget drafts, limits and owner approval API
+- [x] Task 18: Budget drafts, limits and owner approval API
 - [ ] Task 19: Budget execution, 80% / 100% thresholds and notification outbox
 
 ### Checkpoint 4: budgets
