@@ -1,10 +1,20 @@
 import uuid
+from datetime import date
+from typing import Annotated
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Query, Response, status
 
 from family_pnl.api.deps import CurrentUserDep, OperationServiceDep
 from family_pnl.api.errors import ErrorResponse
-from family_pnl.api.schemas.operations import OperationCreate, OperationOut, OperationUpdate
+from family_pnl.api.schemas.operations import (
+    OperationCreate,
+    OperationOut,
+    OperationPage,
+    OperationUpdate,
+)
+from family_pnl.domain.currency import Currency
+from family_pnl.domain.ledger import OperationType
+from family_pnl.repositories.ledger import OperationFilter
 from family_pnl.services.operations import NewOperation, OperationChanges
 
 router = APIRouter(
@@ -28,6 +38,37 @@ async def create_operation(
 ) -> OperationOut:
     new = NewOperation(**body.model_dump())
     return OperationOut.of(await operations.create(user, new))
+
+
+@router.get("", summary="Operations of the household, newest first, with filters")
+async def list_operations(
+    user: CurrentUserDep,
+    operations: OperationServiceDep,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    category_id: uuid.UUID | None = None,
+    account_id: Annotated[
+        uuid.UUID | None, Query(description="Either side of a transfer counts")
+    ] = None,
+    author_id: Annotated[uuid.UUID | None, Query(description="The member who recorded it")] = None,
+    currency: Currency | None = None,
+    op_type: Annotated[OperationType | None, Query(alias="type")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> OperationPage:
+    filters = OperationFilter(
+        date_from=date_from,
+        date_to=date_to,
+        category_id=category_id,
+        account_id=account_id,
+        author_id=author_id,
+        currency=currency,
+        type=op_type,
+    )
+    found, total = await operations.search(user, filters, limit=limit, offset=offset)
+    return OperationPage(
+        items=[OperationOut.of(op) for op in found], total=total, limit=limit, offset=offset
+    )
 
 
 @router.get("/{operation_id}", summary="One operation of the household")

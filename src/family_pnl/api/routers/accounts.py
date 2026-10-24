@@ -2,9 +2,14 @@ import uuid
 
 from fastapi import APIRouter, status
 
-from family_pnl.api.deps import AccountServiceDep, CurrentUserDep
+from family_pnl.api.deps import AccountServiceDep, BalanceServiceDep, CurrentUserDep
 from family_pnl.api.errors import ErrorResponse
-from family_pnl.api.schemas.accounts import AccountCreate, AccountOut, AccountUpdate
+from family_pnl.api.schemas.accounts import (
+    AccountBalanceOut,
+    AccountCreate,
+    AccountOut,
+    AccountUpdate,
+)
 from family_pnl.services.accounts import AccountChanges
 
 router = APIRouter(
@@ -35,6 +40,19 @@ async def list_accounts(
 ) -> list[AccountOut]:
     found = await accounts.list(user, include_archived=include_archived)
     return [AccountOut.of(account) for account in found]
+
+
+# Registered before /{account_id}: otherwise "balances" is parsed as an account id.
+@router.get(
+    "/balances",
+    summary="Balance of every account in its own currency",
+    responses={status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse}},
+)
+async def list_balances(
+    user: CurrentUserDep, balances: BalanceServiceDep, include_archived: bool = False
+) -> list[AccountBalanceOut]:
+    found = await balances.balances(user, include_archived=include_archived)
+    return [AccountBalanceOut.of(item) for item in found]
 
 
 @router.get(

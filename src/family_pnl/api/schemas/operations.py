@@ -97,3 +97,10 @@ class OperationOut(BaseModel):
             created_at=operation.created_at,
             updated_at=operation.updated_at,
         )
+
+
+class OperationPage(BaseModel):
+    items: list[OperationOut]
+    total: int = Field(description="All operations matching the filters")
+    limit: int
+    offset: int
