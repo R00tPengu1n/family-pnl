@@ -3,6 +3,7 @@
 import uuid
 from dataclasses import dataclass
 
+import structlog
 from pydantic import SecretStr
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +34,13 @@ class EmailTakenError(ConflictError):
 
 class InvalidCredentialsError(AuthenticationError):
     code = "invalid_credentials"
+
+
+class InvalidRefreshTokenError(AuthenticationError):
+    code = "invalid_refresh_token"
+
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +110,35 @@ class AuthService:
         tokens = self._issue_tokens(user.id, family_id=uuid.uuid4())
         await self._session.commit()
         return tokens
+
+    async def refresh(self, refresh_token: str) -> TokenPair:
+        """Rotate a refresh token: revoke it and issue a new pair in the same family.
+
+        A token that was already rotated or revoked is a replay, most likely of a stolen
+        token: the whole family is revoked, ending the session for both parties (ADR-0005).
+        """
+        now = self._clock.now()
+        stored = await self._refresh_tokens.get_for_update(hash_refresh_token(refresh_token))
+        if stored is None or stored.expires_at <= now:
+            raise InvalidRefreshTokenError("Refresh token is invalid or expired")
+        if stored.revoked_at is not None:
+            await self._refresh_tokens.revoke_family(stored.family_id, now)
+            await self._session.commit()
+            logger.warning(
+                "refresh_token_reuse", user_id=str(stored.user_id), family_id=str(stored.family_id)
+            )
+            raise InvalidRefreshTokenError("Refresh token is invalid or expired")
+        stored.revoked_at = now
+        tokens = self._issue_tokens(stored.user_id, family_id=stored.family_id)
+        await self._session.commit()
+        return tokens
+
+    async def logout(self, refresh_token: str) -> None:
+        """End the login session the token belongs to. Unknown tokens are ignored."""
+        stored = await self._refresh_tokens.get_for_update(hash_refresh_token(refresh_token))
+        if stored is not None:
+            await self._refresh_tokens.revoke_family(stored.family_id, self._clock.now())
+        await self._session.commit()
 
     async def authenticate(self, access_token: str) -> CurrentUser:
         user_id = decode_access_token(access_token, secret=self._jwt_secret, now=self._clock.now())

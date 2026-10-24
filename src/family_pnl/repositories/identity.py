@@ -1,8 +1,9 @@
 """Database access for users, households and refresh tokens."""
 
 import uuid
+from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from family_pnl.models import Household, Membership, RefreshToken, User
@@ -49,3 +50,16 @@ class RefreshTokenRepository:
 
     def add(self, token: RefreshToken) -> None:
         self._session.add(token)
+
+    async def get_for_update(self, token_hash: str) -> RefreshToken | None:
+        """Lock the row: two concurrent refreshes of one token are serialised."""
+        return await self._session.scalar(
+            select(RefreshToken).where(RefreshToken.token_hash == token_hash).with_for_update()
+        )
+
+    async def revoke_family(self, family_id: uuid.UUID, now: datetime) -> None:
+        await self._session.execute(
+            update(RefreshToken)
+            .where(RefreshToken.family_id == family_id, RefreshToken.revoked_at.is_(None))
+            .values(revoked_at=now)
+        )
