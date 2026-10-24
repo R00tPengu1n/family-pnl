@@ -18,7 +18,11 @@ class Notification(Base):
 
     __tablename__ = "notifications"
     __table_args__ = (
-        Index("ix_notifications_pending", "created_at", postgresql_where=text("sent_at IS NULL")),
+        Index(
+            "ix_notifications_pending",
+            "next_attempt_at",
+            postgresql_where=text("sent_at IS NULL AND gave_up_at IS NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
@@ -31,3 +35,6 @@ class Notification(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Delivery (ADR-0009): due from this time; after too many failures it is given up.
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    gave_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

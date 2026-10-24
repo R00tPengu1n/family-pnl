@@ -13,6 +13,7 @@ from arq.cron import cron
 from family_pnl.core.config import Settings, get_settings
 from family_pnl.worker.context import shutdown, startup
 from family_pnl.worker.jobs.fx import refresh_rates
+from family_pnl.worker.jobs.notifications import deliver_notifications
 
 
 def worker_settings(settings: Settings) -> dict[str, Any]:
@@ -23,7 +24,10 @@ def worker_settings(settings: Settings) -> dict[str, Any]:
         # Cron times are UTC. 21:10 and 06:10 UTC are 00:10 and 09:10 in Minsk (UTC+3 all
         # year): NBRB sets the rates the day before; the second run covers a failed first.
         "timezone": datetime.UTC,
-        "cron_jobs": [cron(refresh_rates, hour={21, 6}, minute=10, unique=True)],
+        "cron_jobs": [
+            cron(refresh_rates, hour={21, 6}, minute=10, unique=True),
+            cron(deliver_notifications, second=0, unique=True),  # every minute
+        ],
     }
 
 

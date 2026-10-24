@@ -1,40 +1,25 @@
 """The daily NBRB rate refresh job, its worker context and the worker settings."""
 
 import dataclasses
-from collections.abc import AsyncIterator
-from datetime import UTC, date, datetime
+from datetime import UTC, date
 from pathlib import Path
 
 import httpx
 import pytest
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from family_pnl.core.clock import FrozenClock
 from family_pnl.core.config import Settings
 from family_pnl.domain.currency import Currency
 from family_pnl.repositories.fx import FxRateRepository
 from family_pnl.worker import context as worker_context
 from family_pnl.worker import settings as worker_settings_module
-from family_pnl.worker.context import WorkerContext, build_context, context_of, shutdown, startup
+from family_pnl.worker.context import WorkerContext, context_of, shutdown, startup
 from family_pnl.worker.jobs.fx import refresh_rates, refresh_rates_with
 from tests.integration.test_rate_service import RATES_TUESDAY, FakeSource
 
-# 21:30 UTC on 19 October is 00:30 on 20 October in Minsk.
-NOW = datetime(2026, 10, 19, 21, 30, tzinfo=UTC)
 MINSK_TODAY = date(2026, 10, 20)
 NBRB_FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "nbrb" / "rates_2026-10-20.json"
-
-
-@pytest.fixture
-async def context(settings: Settings, db_session: AsyncSession) -> AsyncIterator[WorkerContext]:
-    """A worker context whose sessions live inside the test transaction."""
-    built = build_context(settings, FrozenClock(NOW))
-    factory = async_sessionmaker(
-        bind=db_session.bind, join_transaction_mode="create_savepoint", expire_on_commit=False
-    )
-    yield dataclasses.replace(built, session_factory=factory)
-    await built.close()
 
 
 async def stored(db_session: AsyncSession, day: date) -> dict[Currency, str]:
@@ -149,12 +134,19 @@ def test_worker_settings_come_from_the_configuration(
         shutdown,
         UTC,
     )
-    [job] = found["cron_jobs"]
-    assert (job.name, job.hour, job.minute, job.unique) == (
+    rates, delivery = found["cron_jobs"]
+    assert (rates.name, rates.hour, rates.minute, rates.unique) == (
         "cron:refresh_rates",
         {21, 6},
         10,
         True,
+    )
+    # Every minute: no hour or minute fixed, at second 0.
+    assert (delivery.name, delivery.hour, delivery.minute, delivery.second) == (
+        "cron:deliver_notifications",
+        None,
+        None,
+        0,
     )
 
 

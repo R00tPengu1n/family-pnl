@@ -534,11 +534,11 @@ and a fake for tests; job reads pending notifications from the outbox, sends the
 linked users and marks them sent; retries with backoff on failure.
 
 **Acceptance criteria:**
-- [ ] Sent notifications are not sent again after a worker restart
-- [ ] Users without a linked Telegram are skipped with a log entry
+- [x] Sent notifications are not sent again after a worker restart
+- [x] Users without a linked Telegram are skipped with a log entry
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/worker/test_notification_delivery.py`
+- [x] `uv run pytest tests/integration/worker/test_notification_delivery.py`
 
 **Dependencies:** Tasks 19, 24
 **Files likely touched:** `integrations/telegram.py`, `worker/jobs/notifications.py`,

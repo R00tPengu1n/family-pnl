@@ -1,15 +1,14 @@
 import uuid
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import Any, cast
+from typing import cast
 
 from sqlalchemy import func, select
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.ledger import OperationType
-from family_pnl.models import Budget, BudgetLimit, Category, Notification, Operation
+from family_pnl.models import Budget, BudgetLimit, Category, Operation
 
 
 class BudgetRepository:
@@ -75,33 +74,3 @@ class SpendingRepository:
         )
         # Expenses always have a category: ck_operations_category_unless_transfer.
         return [(cast(uuid.UUID, row[0]), row[1], row[2], row[3]) for row in rows]
-
-
-class NotificationRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    async def add_once(
-        self,
-        *,
-        notification_id: uuid.UUID,
-        household_id: uuid.UUID,
-        kind: str,
-        dedupe_key: str,
-        payload: dict[str, Any],
-        created_at: datetime,
-    ) -> None:
-        """Record an event unless one with the same key already exists."""
-        await self._session.execute(
-            insert(Notification)
-            .values(
-                id=notification_id,
-                household_id=household_id,
-                kind=kind,
-                dedupe_key=dedupe_key,
-                payload=payload,
-                created_at=created_at,
-                attempts=0,
-            )
-            .on_conflict_do_nothing(index_elements=["dedupe_key"])
-        )

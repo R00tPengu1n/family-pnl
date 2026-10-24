@@ -17,6 +17,7 @@ def _clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         "FAMILY_PNL_LOG_JSON",
         "FAMILY_PNL_DEFAULT_TIMEZONE",
         "FAMILY_PNL_BOT_API_SECRET",
+        "FAMILY_PNL_TELEGRAM_BOT_TOKEN",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("FAMILY_PNL_DATABASE_URL", DATABASE_URL)
@@ -150,3 +151,24 @@ def test_bot_secret_is_hidden_in_repr(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert "b0t-" not in repr(settings)
     assert settings.bot_api_secret is not None
+
+
+@pytest.mark.parametrize("value", [None, ""], ids=["absent", "empty"])
+def test_notifications_wait_without_a_telegram_token(
+    monkeypatch: pytest.MonkeyPatch, value: str | None
+) -> None:
+    if value is not None:
+        monkeypatch.setenv("FAMILY_PNL_TELEGRAM_BOT_TOKEN", value)
+
+    assert Settings(_env_file=None).telegram_bot_token is None
+
+
+def test_the_telegram_token_is_hidden_in_repr(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAMILY_PNL_TELEGRAM_BOT_TOKEN", "123456:telegram-token")
+
+    settings = Settings(_env_file=None)
+
+    assert "telegram-token" not in repr(settings)
+    assert settings.telegram_bot_token is not None
+    assert settings.telegram_bot_token.get_secret_value() == "123456:telegram-token"
+    assert settings.telegram_api_url == "https://api.telegram.org"

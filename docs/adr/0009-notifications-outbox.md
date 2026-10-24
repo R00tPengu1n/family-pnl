@@ -25,6 +25,17 @@ can be slow or down, and the worker can restart at any time.
   date's rate). If no rate is available at all, the check is skipped with a warning rather
   than failing the expense; the next expense checks again.
 
+## Delivery (Task 25)
+
+- The worker runs every minute and handles at most 100 due rows per run, each in its own
+  transaction: lock (`FOR UPDATE SKIP LOCKED`), send to every member of the household,
+  set `sent_at`, commit.
+- Members without a linked Telegram, and chats that refuse the bot (HTTP 400/403), are
+  skipped with a log entry; the row still counts as sent.
+- Network errors, 429 and 5xx postpone the row: `next_attempt_at` grows 1, 2, 4… minutes
+  up to six hours; after 10 failures `gave_up_at` is set and an error is logged.
+- Without `FAMILY_PNL_TELEGRAM_BOT_TOKEN` the job logs a warning and rows keep waiting.
+
 ## Consequences
 
 - At-least-once delivery: a crash after sending and before marking sent may repeat one
