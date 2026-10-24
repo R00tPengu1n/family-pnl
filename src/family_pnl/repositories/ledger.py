@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from family_pnl.domain.ledger import CategoryKind
-from family_pnl.models import Account, Category
+from family_pnl.models import Account, Category, Operation
 
 
 class AccountRepository:
@@ -61,3 +61,21 @@ class CategoryRepository:
         if not include_archived:
             query = query.where(Category.archived.is_(False))
         return list(await self._session.scalars(query.order_by(Category.kind, Category.name)))
+
+
+class OperationRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def add(self, operation: Operation) -> None:
+        self._session.add(operation)
+
+    async def get(self, household_id: uuid.UUID, operation_id: uuid.UUID) -> Operation | None:
+        return await self._session.scalar(
+            select(Operation).where(
+                Operation.household_id == household_id, Operation.id == operation_id
+            )
+        )
+
+    async def delete(self, operation: Operation) -> None:
+        await self._session.delete(operation)
