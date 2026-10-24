@@ -169,7 +169,7 @@ uv run alembic upgrade head
 uv run alembic revision --autogenerate -m "describe change"
 
 # Run services without Docker
-uv run uvicorn family_pnl.api.main:app --reload
+uv run uvicorn --factory family_pnl.api.main:create_app --reload
 uv run python -m family_pnl_bot
 uv run arq family_pnl.worker.settings.WorkerSettings
 

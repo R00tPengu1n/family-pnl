@@ -5,7 +5,7 @@ from functools import lru_cache
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     log_level: LogLevel = "INFO"
     log_json: bool = False
     default_timezone: str = "Europe/Minsk"
+    # Contains the password, hence SecretStr: hidden in repr and logs.
+    database_url: SecretStr
 
     @field_validator("log_level", mode="before")
     @classmethod
@@ -42,6 +44,13 @@ class Settings(BaseSettings):
             ZoneInfo(value)
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"unknown time zone: {value}") from exc
+        return value
+
+    @field_validator("database_url")
+    @classmethod
+    def _asyncpg_url(cls, value: SecretStr) -> SecretStr:
+        if not value.get_secret_value().startswith("postgresql+asyncpg://"):
+            raise ValueError("database_url must start with postgresql+asyncpg://")
         return value
 
 
