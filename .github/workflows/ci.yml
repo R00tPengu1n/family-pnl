@@ -1,0 +1,162 @@
+# Every row of CONSTRAINTS.md marked "CI" runs here. Actions are pinned to commit SHAs:
+# a tag can be moved to other code, a SHA cannot.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PYTHON_VERSION: "3.13"
+  UV_LOCKED: "1"
+
+jobs:
+  quality:
+    name: Lint, types, layers, floor guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the floor guard diffs against the merge base
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync
+      - name: ruff check
+        run: uv run ruff check --output-format=github .
+      - name: ruff format
+        run: uv run ruff format --check .
+      - name: mypy
+        run: uv run mypy
+      - name: import-linter
+        run: uv run lint-imports
+      - name: floor guard
+        env:
+          # Event data reaches scripts through env, never interpolated into the script text.
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: uv run python scripts/floor_guard.py --base "origin/$BASE_REF"
+
+  tests:
+    name: Tests with PostgreSQL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          # Throwaway credentials of a CI-only service container.
+          POSTGRES_USER: family_pnl
+          POSTGRES_PASSWORD: family_pnl
+          POSTGRES_DB: family_pnl_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U family_pnl -d family_pnl_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://family_pnl:family_pnl@127.0.0.1:5432/family_pnl_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync
+      - name: pytest with the coverage gate
+        run: uv run pytest --cov --cov-fail-under=85 --cov-report=term-missing
+
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync
+      - name: pip-audit on the locked dependencies
+        run: |
+          uv export --frozen --no-emit-project --quiet -o requirements.txt
+          uv run pip-audit -r requirements.txt --strict --require-hashes --disable-pip --progress-spinner off
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # scan the whole history, not only the last commit
+      - name: gitleaks
+        # --redact keeps any matched secret out of the job log.
+        run: >-
+          docker run --rm -v "$PWD:/repo"
+          -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/repo
+          ghcr.io/gitleaks/gitleaks:v8.30.1
+          git /repo --redact --no-banner --verbose
+
+  semgrep:
+    name: Static security analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: semgrep (ERROR severity blocks)
+        run: >-
+          uvx semgrep@1.182.1 scan --metrics=off
+          --config p/python --config p/owasp-top-ten
+          --severity ERROR --error src
+
+  mutation:
+    name: Mutation testing (domain)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Changed domain modules
+        id: changes
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          changed=$(git diff --name-only --diff-filter=AM "origin/$BASE_REF...HEAD" -- 'src/family_pnl/domain/*.py' | grep -v '__init__.py$' || true)
+          echo "Changed domain modules: ${changed:-none}"
+          if [ -n "$changed" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        if: steps.changes.outputs.run == 'true'
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - if: steps.changes.outputs.run == 'true'
+        run: uv sync --group mutation
+      - name: mutmut
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          uv run mutmut run --max-children 4
+          uv run mutmut export-cicd-stats
+      - name: Mutation score ≥ 60%
+        if: steps.changes.outputs.run == 'true'
+        run: uv run python scripts/mutation_gate.py --min 60

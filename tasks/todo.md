@@ -73,12 +73,12 @@ on PRs touching `src/family_pnl/domain/`. Docker build is added to CI in Task 32
 Record the first measured coverage in `CONSTRAINTS.md` (Measured, not yet enforced).
 
 **Acceptance criteria:**
-- [ ] Workflow runs on PRs into `main` and on pushes to `main`
-- [ ] Every row of `CONSTRAINTS.md` marked "CI" fails the job when violated
+- [x] Workflow runs on PRs into `main` and on pushes to `main`
+- [x] Every row of `CONSTRAINTS.md` marked "CI" fails the job when violated
 - [ ] Branch protection on `main` requires the CI check (owner enables it in GitHub settings)
 
 **Verification:**
-- [ ] The PR for this task shows a green CI run
+- [x] The PR for this task shows a green CI run
 
 **Dependencies:** Task 2
 **Files likely touched:** `.github/workflows/ci.yml`
