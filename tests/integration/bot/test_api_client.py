@@ -184,6 +184,15 @@ async def test_a_second_refusal_is_raised() -> None:
     assert seen == ["token", "Bearer t0", "token", "Bearer t1"]
 
 
+async def test_the_bot_asks_for_a_credentials_code(api: ApiClient) -> None:
+    await api.register(ANNA, display_name=None)
+
+    code = await api.credentials_code(ANNA)
+
+    assert len(code) == 9
+    assert code[4] == "-"
+
+
 async def test_expired_tokens_are_dropped_beyond_the_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

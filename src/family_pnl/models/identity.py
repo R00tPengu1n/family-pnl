@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.identity import Role
+from family_pnl.domain.telegram import CodePurpose
 from family_pnl.models.base import Base
 from family_pnl.models.types import checked_enum
 
@@ -128,7 +129,7 @@ class Invite(Base):
 
 
 class TelegramLinkCode(Base):
-    """A one-time code that links a Telegram account to an existing user."""
+    """A one-time code between the API and the bot (domain.telegram.CodePurpose)."""
 
     __tablename__ = "telegram_link_codes"
 
@@ -140,3 +141,6 @@ class TelegramLinkCode(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    purpose: Mapped[CodePurpose] = mapped_column(
+        checked_enum(CodePurpose, "code_purpose"), default=CodePurpose.TELEGRAM
+    )

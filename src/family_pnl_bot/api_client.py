@@ -70,6 +70,12 @@ class ApiClient:
     async def link(self, telegram_id: int, code: str) -> Me:
         return Me.of(await self._as_bot("/bot/link", {"telegram_id": telegram_id, "code": code}))
 
+    async def credentials_code(self, telegram_id: int) -> str:
+        """A one-time code to set an email and password in the API (`POST /auth/credentials`)."""
+        body = await self._as_bot("/bot/credentials-code", {"telegram_id": telegram_id})
+        code: str = body["code"]
+        return code
+
     async def me(self, telegram_id: int) -> Me:
         return Me.of(await self.request(telegram_id, "GET", "/me"))
 

@@ -4,7 +4,7 @@ from typing import Any, cast
 
 import pytest
 
-from family_pnl_bot.accounts import create_account
+from family_pnl_bot.accounts import create_account, credentials_code
 from family_pnl_bot.api_client import ApiClient, ApiError
 from family_pnl_bot.quick_entry import Button, Reply
 from family_pnl_bot.reports import Reports
@@ -100,3 +100,31 @@ async def test_currency_buttons_the_bot_did_not_send_are_refused(api: FakeApi, d
 
     assert reply.text == "Эта запись устарела. Отправьте сообщение ещё раз."
     assert api.calls == []
+
+
+class CodeApi:
+    def __init__(self, error: ApiError | None = None) -> None:
+        self.error = error
+
+    async def credentials_code(self, telegram_id: int) -> str:
+        if self.error is not None:
+            raise self.error
+        return "K7Q2-M9XD"
+
+
+async def test_password_gives_a_code_and_never_asks_for_the_password() -> None:
+    reply = await credentials_code(cast(ApiClient, CodeApi()), ME)
+
+    assert reply.text == (
+        "Код для email и пароля: K7Q2-M9XD, действует 10 минут.\n"
+        "Отправьте его в API: POST /auth/credentials с полями code, email и password. "
+        "Пароль в этот чат не пишите."
+    )
+
+
+async def test_an_account_with_a_password_is_told_so() -> None:
+    api = CodeApi(ApiError(409, "credentials_already_set", ""))
+
+    reply = await credentials_code(cast(ApiClient, api), ME)
+
+    assert reply.text == "У вас уже есть email и пароль: входите через POST /auth/login."

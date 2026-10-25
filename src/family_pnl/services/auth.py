@@ -15,6 +15,7 @@ from family_pnl.core.errors import AuthenticationError, ConflictError
 from family_pnl.core.security import (
     create_access_token,
     decode_access_token,
+    hash_invite_code,
     hash_password,
     hash_refresh_token,
     new_refresh_token,
@@ -22,10 +23,18 @@ from family_pnl.core.security import (
 )
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.identity import Role, check_password_policy, normalize_email
+from family_pnl.domain.telegram import (
+    CodePurpose,
+    CredentialsAlreadySetError,
+    LinkCodeInvalidError,
+    check_link_code_usable,
+    normalize_link_code,
+)
 from family_pnl.models import Category, Household, Membership, RefreshToken, User
 from family_pnl.repositories.identity import (
     HouseholdRepository,
     RefreshTokenRepository,
+    TelegramLinkCodeRepository,
     UserRepository,
 )
 from family_pnl.services.rate_limit import LoginRateLimiter
@@ -91,6 +100,7 @@ class AuthService:
         self._users = UserRepository(session)
         self._households = HouseholdRepository(session)
         self._refresh_tokens = RefreshTokenRepository(session)
+        self._codes = TelegramLinkCodeRepository(session)
 
     async def register(self, email: str, password: str, household_name: str) -> CurrentUser:
         """Create a user who owns a new, empty household."""
@@ -119,6 +129,42 @@ class AuthService:
             await self._session.rollback()
             raise EmailTakenError("An account with this email already exists") from exc
         return _current_user(user, membership, household)
+
+    async def set_credentials(
+        self, typed_code: str, email: str, password: str, *, ip: str
+    ) -> uuid.UUID:
+        """Give the Telegram-only user of a credentials code an email and password."""
+        # Codes are guessed here, so attempts are limited like logins.
+        await self._login_limiter.reserve(email, ip)
+        email = normalize_email(email)
+        check_password_policy(password, email=email)
+        now = self._clock.now()
+        code = await self._codes.get_for_update(hash_invite_code(normalize_link_code(typed_code)))
+        if code is None:
+            raise LinkCodeInvalidError("Link code is invalid or has expired")
+        check_link_code_usable(
+            expires_at=code.expires_at,
+            used_at=code.used_at,
+            now=now,
+            purpose=code.purpose,
+            expected=CodePurpose.CREDENTIALS,
+        )
+        user = await self._users.lock(code.user_id)
+        if user.email is not None:
+            raise CredentialsAlreadySetError("This account already has an email and password")
+        if await self._users.get_by_email(email) is not None:
+            raise EmailTakenError("An account with this email already exists")
+        user.email = email
+        user.password_hash = await asyncio.to_thread(hash_password, password)
+        code.used_at = now
+        try:
+            await self._session.commit()
+        except IntegrityError as exc:
+            # Another account took the email between the check and the commit.
+            await self._session.rollback()
+            raise EmailTakenError("An account with this email already exists") from exc
+        await self._login_limiter.succeeded(email, ip)
+        return user.id
 
     async def login(self, email: str, password: str, *, ip: str) -> TokenPair:
         # Counted before hashing: refused attempts cost no argon2 work.

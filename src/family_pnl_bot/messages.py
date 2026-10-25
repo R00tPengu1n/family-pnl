@@ -15,13 +15,14 @@ ERRORS = {
     "api_unavailable": "Сервис сейчас недоступен. Попробуйте чуть позже.",
     "archived": "Этот счёт или категория в архиве.",
     "rates_unavailable": "Курсы валют сейчас недоступны. Попробуйте чуть позже.",
+    "credentials_already_set": "У вас уже есть email и пароль: входите через POST /auth/login.",
 }
 UNKNOWN_ERROR = "Что-то пошло не так. Попробуйте ещё раз."
 
 HELP = (
     "Записывайте траты и доходы одним сообщением: «кофе 5.50», «+зарплата 2500 byn».\n"
     "Сначала откройте счёт: /account Карта BYN. Ещё: /balance, /report, /budget, /limit, "
-    "/currency, /input."
+    "/currency, /input, /password."
 )
 
 LINK_USAGE = "Отправьте код из приложения: /link K7Q2-M9XD"
@@ -113,3 +114,11 @@ def account_created(name: str, currency: str, shared: bool) -> str:
 
 
 SHARED_ACCOUNT_REFUSED = "Общий счёт может открыть только владелец семьи."
+
+
+def credentials_code(code: str) -> str:
+    return (
+        f"Код для email и пароля: {code}, действует 10 минут.\n"
+        "Отправьте его в API: POST /auth/credentials с полями code, email и password. "
+        "Пароль в этот чат не пишите."
+    )
