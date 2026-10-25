@@ -24,3 +24,6 @@ CLAUDE.md
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Database dumps (scripts/backup.sh)
+backups/
