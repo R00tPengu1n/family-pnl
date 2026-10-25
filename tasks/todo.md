@@ -679,12 +679,12 @@ step, healthchecks and `restart: unless-stopped`; Docker build in CI.
 Run the API with `uvicorn --factory family_pnl.api.main:create_app` (done in Task 2).
 
 **Acceptance criteria:**
-- [ ] `docker compose up --build` starts all services; `/health` and `/docs` answer
-- [ ] Containers run as non-root; only the API port is published
-- [ ] CI builds the image
+- [x] `docker compose up --build` starts all services; `/health` and `/docs` answer
+- [x] Containers run as non-root; only the API port is published
+- [x] CI builds the image
 
 **Verification:**
-- [ ] Manual: `docker compose up --build`, then `/health`, bot `/start`
+- [ ] Manual: `docker compose up --build`, then `/health`, bot `/start` (`/health` and `/docs` checked; bot `/start` waits for the owner's bot token)
 - [ ] CI green with the Docker build job
 
 **Dependencies:** Task 31

@@ -5,7 +5,7 @@ from typing import Any, cast
 
 import pytest
 from httpx import AsyncClient
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 
 from family_pnl_bot import messages
 from family_pnl_bot.api_client import ApiClient, ApiError
@@ -157,3 +157,16 @@ def test_settings_have_safe_defaults() -> None:
         900,
     )
     assert "test-token" not in repr(settings)
+
+
+def test_a_missing_token_is_reported_without_the_other_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("FAMILY_PNL_TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("FAMILY_PNL_BOT_API_SECRET", "bot-secret-value-of-32-characters!")
+
+    with pytest.raises(ValidationError) as raised:
+        BotSettings(_env_file=None)
+
+    assert "telegram_bot_token" in str(raised.value)
+    assert "bot-secret-value" not in str(raised.value)
