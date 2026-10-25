@@ -134,20 +134,29 @@ def get_category_service(
     return CategoryService(session, clock)
 
 
+def get_budget_execution_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    rates: Annotated[RateService, Depends(get_rate_service)],
+    clock: Annotated[Clock, Depends(get_clock)],
+) -> BudgetExecutionService:
+    return BudgetExecutionService(session, rates, clock)
+
+
 def get_operation_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     clock: Annotated[Clock, Depends(get_clock)],
     rates: Annotated[RateService, Depends(get_rate_service)],
+    budgets: Annotated[BudgetExecutionService, Depends(get_budget_execution_service)],
 ) -> OperationService:
-    return OperationService(session, clock, rates)
+    return OperationService(session, clock, rates, budgets)
 
 
 def get_csv_import_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     clock: Annotated[Clock, Depends(get_clock)],
-    rates: Annotated[RateService, Depends(get_rate_service)],
+    budgets: Annotated[BudgetExecutionService, Depends(get_budget_execution_service)],
 ) -> CsvImportService:
-    return CsvImportService(session, clock, rates)
+    return CsvImportService(session, clock, budgets)
 
 
 def get_balance_service(
@@ -172,14 +181,6 @@ def get_report_service(
     clock: Annotated[Clock, Depends(get_clock)],
 ) -> ReportService:
     return ReportService(session, rates, clock)
-
-
-def get_budget_execution_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
-    rates: Annotated[RateService, Depends(get_rate_service)],
-    clock: Annotated[Clock, Depends(get_clock)],
-) -> BudgetExecutionService:
-    return BudgetExecutionService(session, rates, clock)
 
 
 def get_settings_service(
