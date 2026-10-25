@@ -699,8 +699,8 @@ Linux, configuration (`.env.example`), CSV format, bot commands, known limitatio
 to ADRs. Russian version mirrors the English one.
 
 **Acceptance criteria:**
-- [ ] A new developer can run the stack from README alone
-- [ ] No "pet project", "educational", invented users or metrics
+- [x] A new developer can run the stack from README alone
+- [x] No "pet project", "educational", invented users or metrics
 
 **Verification:**
 - [ ] Manual: follow README from a clean clone
