@@ -17,6 +17,8 @@ from pydantic import SecretStr
 
 # A token is renewed this many seconds before it expires.
 TOKEN_MARGIN_SECONDS = 30
+# Above this many cached tokens, the expired ones are dropped.
+SWEEP_ABOVE = 1000
 
 
 class ApiError(Exception):
@@ -117,8 +119,10 @@ class ApiClient:
             return cached[0]
         body = await self._as_bot("/auth/telegram", {"telegram_id": telegram_id})
         token: str = body["access_token"]
-        valid_until = self._now() + body["expires_in"] - TOKEN_MARGIN_SECONDS
-        self._tokens[telegram_id] = (token, valid_until)
+        now = self._now()
+        if len(self._tokens) > SWEEP_ABOVE:
+            self._tokens = {k: v for k, v in self._tokens.items() if v[1] > now}
+        self._tokens[telegram_id] = (token, now + body["expires_in"] - TOKEN_MARGIN_SECONDS)
         return token
 
     async def _as_bot(self, path: str, body: dict[str, Any]) -> Any:
