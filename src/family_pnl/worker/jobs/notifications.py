@@ -4,7 +4,11 @@ from typing import Any
 
 import structlog
 
-from family_pnl.integrations.telegram import BotApiSender, TelegramSender
+from family_pnl.integrations.telegram import (
+    BotApiSender,
+    TelegramSender,
+    TelegramTokenRejectedError,
+)
 from family_pnl.services.notifications import NotificationDelivery
 from family_pnl.worker.context import WorkerContext, context_of
 
@@ -28,7 +32,12 @@ async def deliver_with(context: WorkerContext, sender: TelegramSender) -> int:
     handled = 0
     while handled < BATCH:
         async with context.session_factory() as session:
-            if not await NotificationDelivery(session, sender, context.clock).deliver_next():
+            delivery = NotificationDelivery(session, sender, context.clock)
+            try:
+                if not await delivery.deliver_next():
+                    break
+            except TelegramTokenRejectedError as exc:
+                logger.error("telegram_token_rejected", error=str(exc))
                 break
         handled += 1
     return handled

@@ -26,8 +26,10 @@ from family_pnl.domain.notifications import (
 )
 from family_pnl.integrations.telegram import (
     TelegramChatUnavailableError,
+    TelegramMessageRejectedError,
     TelegramSender,
     TelegramSendError,
+    TelegramTokenRejectedError,
 )
 from family_pnl.models import Notification, User
 from family_pnl.repositories.identity import HouseholdRepository
@@ -58,6 +60,10 @@ class NotificationDelivery:
         log = logger.bind(notification_id=str(notification_id), kind=notification.kind)
         try:
             await self._deliver(notification, now, log)
+        except TelegramTokenRejectedError:
+            # Not this row's fault: leave every row as it is until the token is fixed.
+            await self._session.rollback()
+            raise
         except Exception as exc:
             # A row that cannot be handled (a broken payload, say) must not stay first in
             # the queue forever: it is retried later like a failed send, then given up.
@@ -84,6 +90,11 @@ class NotificationDelivery:
                     notification.delivered_to = [*notification.delivered_to, str(user.id)]
         except TelegramSendError as exc:
             self._postpone(notification, now, str(exc), log)
+            return
+        except TelegramMessageRejectedError as exc:
+            # The same text goes to everyone: no member can get it, now or later.
+            log.error("notification_rejected", error=str(exc))
+            notification.gave_up_at = now
             return
         notification.attempts += 1
         notification.sent_at = now
