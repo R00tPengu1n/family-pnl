@@ -106,7 +106,7 @@ class QuickEntry:
             currency=entry.currency or settings["input_currency"],
             category=None,
         )
-        category, candidates = _match_category(entry.category, categories)
+        category, candidates = match_category(entry.category, categories)
         if category is None:
             return self._ask(pending, messages.CHOOSE_CATEGORY, candidates or categories)
         return await self._complete(pending, category)
@@ -162,7 +162,7 @@ class QuickEntry:
         return Reply(question, rows)
 
 
-def _match_category(
+def match_category(
     typed: str, categories: list[dict[str, Any]]
 ) -> tuple[Option | None, list[dict[str, Any]]]:
     """The category meant, or none and the candidates to offer."""

@@ -31,3 +31,9 @@ def money(value: str | Decimal, currency: str) -> str:
 def month_name(month: date) -> str:
     """Октябрь 2026."""
     return f"{MONTHS[month.month - 1].capitalize()} {month.year}"
+
+
+def shift_month(month: date, months: int) -> date:
+    """The first day of the month `months` away (negative: back)."""
+    index = month.year * 12 + month.month - 1 + months
+    return date(index // 12, index % 12 + 1, 1)

@@ -1,5 +1,6 @@
 """Failed logins are limited per email and per IP (5 per 15 minutes)."""
 
+import asyncio
 from collections.abc import Callable
 
 import pytest
@@ -128,8 +129,14 @@ async def test_emails_are_not_stored_in_plain_text(client: AsyncClient, redis: R
 
 
 async def test_limiter_fails_open_when_redis_is_down(settings: Settings) -> None:
-    # An outage must not lock every user out (ADR-0006); it is logged instead.
-    dead = create_redis(SecretStr("redis://127.0.0.1:1/0"))
+    # An outage must not lock every user out (ADR-0006); it is logged instead. The "Redis"
+    # hangs up on every connection: down, without the second Windows spends on a closed port.
+    async def hang_up(_: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        writer.close()
+
+    server = await asyncio.start_server(hang_up, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    dead = create_redis(SecretStr(f"redis://127.0.0.1:{port}/0"))
     limiter = LoginRateLimiter(dead, settings)
     try:
         with structlog.testing.capture_logs() as logs:
@@ -138,5 +145,7 @@ async def test_limiter_fails_open_when_redis_is_down(settings: Settings) -> None
             await limiter.reset_email("anna@example.com")
     finally:
         await dead.aclose()
+        server.close()
+        await server.wait_closed()
 
     assert [log["event"] for log in logs] == ["rate_limit_unavailable"] * 3

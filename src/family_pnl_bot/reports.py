@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 from family_pnl_bot import messages
 from family_pnl_bot.api_client import ApiClient, ApiError
-from family_pnl_bot.formatting import amount, money, month_name
+from family_pnl_bot.formatting import amount, money, month_name, shift_month
 from family_pnl_bot.quick_entry import Button, Reply
 
 REPORT_PREFIX = "rep"
@@ -57,10 +57,10 @@ class Reports:
             )
         except ApiError as error:
             return Reply(messages.error_text(error))
-        previous = _shift(month, -1)
+        previous = shift_month(month, -1)
         buttons = [Button(f"← {month_name(previous)}", _report_data(previous))]
         if month < current:
-            following = _shift(month, 1)
+            following = shift_month(month, 1)
             buttons.append(Button(f"{month_name(following)} →", _report_data(following)))
         return Reply(_report_text(month, body), (tuple(buttons),))
 
@@ -118,11 +118,6 @@ def _month_of(data: str | None) -> date | None:
         return date.fromisoformat(data.split(":", 1)[1] + "-01")
     except (IndexError, ValueError):
         return None
-
-
-def _shift(month: date, months: int) -> date:
-    index = month.year * 12 + month.month - 1 + months
-    return date(index // 12, index % 12 + 1, 1)
 
 
 def _report_data(month: date) -> str:
