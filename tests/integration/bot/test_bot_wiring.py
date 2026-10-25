@@ -27,7 +27,7 @@ TOKEN = "123456:test-token"
 class Telegram:
     """A dispatcher fed with updates; what the bot sent is recorded instead of posted."""
 
-    feed: Callable[[str, int | None], Awaitable[None]]
+    feed: Callable[..., Awaitable[None]]
     press: Callable[[str, bool], Awaitable[None]]
     sent: list[str]
     buttons: list[list[str]]  # callback data of the last keyboard the bot sent
@@ -71,12 +71,12 @@ def telegram(api: ApiClient) -> Telegram:
     bot = Bot(TOKEN, session=RecordingSession())
     dispatcher = build_dispatcher(api, AttemptLimiter(5, 900))
 
-    async def feed(text: str, user_id: int | None = ANNA) -> None:
+    async def feed(text: str, user_id: int | None = ANNA, chat: str = "private") -> None:
         sender = None if user_id is None else User(id=user_id, is_bot=False, first_name="Анна")
         message = Message(
             message_id=1,
             date=datetime.now(UTC),
-            chat=Chat(id=user_id or -100, type="private"),
+            chat=Chat(id=user_id or -100, type=chat),
             from_user=sender,
             text=text,
         )
@@ -283,3 +283,15 @@ async def test_a_telegram_only_member_opens_an_account_and_records(
         "Готово: сумма без валюты теперь в RUB.",
     ]
     assert telegram.sent[4] == "Расход 5.00 RUB записан: «Продукты», счёт «Карта»."
+
+
+async def test_the_bot_stays_silent_in_groups(telegram: Telegram, api: ApiClient) -> None:
+    await telegram.feed("/start", ANNA)
+    await card_for(api)
+
+    for chat in ("group", "supergroup"):
+        await telegram.feed("буду через 10", ANNA, chat)
+        await telegram.feed("/balance", ANNA, chat)
+
+    assert len(telegram.sent) == 1  # only the private /start
+    assert (await api.request(ANNA, "GET", "/operations"))["items"] == []
