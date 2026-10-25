@@ -13,6 +13,8 @@ ERRORS = {
     "telegram_not_registered": "Вы ещё не зарегистрированы. Наберите /start.",
     "link_code_invalid": "Код не подходит или устарел. Запросите новый в приложении.",
     "api_unavailable": "Сервис сейчас недоступен. Попробуйте чуть позже.",
+    "archived": "Этот счёт или категория в архиве.",
+    "rates_unavailable": "Курсы валют сейчас недоступны. Попробуйте чуть позже.",
 }
 UNKNOWN_ERROR = "Что-то пошло не так. Попробуйте ещё раз."
 
@@ -40,3 +42,17 @@ def welcome_back(household: str) -> str:
 
 def linked(account: str) -> str:
     return f"Telegram привязан к аккаунту {account}."
+
+
+CHOOSE_CATEGORY = "Какая категория?"
+CHOOSE_ACCOUNT = "С какого счёта?"
+NO_ACCOUNTS = "Сначала заведите счёт в приложении: без него записать нельзя."
+ENTRY_EXPIRED = "Эта запись устарела. Отправьте сообщение ещё раз."
+ENTRY_UNDONE = "Запись отменена."
+ENTRY_ALREADY_GONE = "Этой записи уже нет."
+UNDO_BUTTON = "Отменить"
+
+
+def recorded(*, income: bool, amount: str, category: str, account: str) -> str:
+    kind = "Доход" if income else "Расход"
+    return f"{kind} {amount} записан: «{category}», счёт «{account}»."
