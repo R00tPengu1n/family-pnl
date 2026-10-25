@@ -39,5 +39,6 @@ async def refresh_rates_with(context: WorkerContext, source: RateSource) -> date
         return today
     async with context.session_factory() as session:
         await RateService(session, source, context.clock).store(today, rates)
+        await session.commit()
     logger.info("fx_refresh_stored", day=today.isoformat(), currencies=sorted(rates))
     return today
