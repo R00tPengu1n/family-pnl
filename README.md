@@ -96,7 +96,7 @@ Checks (the same as CI, except mutation testing, which runs in CI only):
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
 uv run lint-imports
-uv run pytest -n 4 --dist loadgroup --cov
+uv run pytest -n 6 --dist loadgroup --cov
 ```
 
 On Windows, `.\scripts\check.ps1 -Stage task` runs them all with the coverage gate and

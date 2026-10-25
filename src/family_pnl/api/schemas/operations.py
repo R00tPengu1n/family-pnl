@@ -5,6 +5,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from family_pnl.api.schemas.common import Day
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.ledger import OperationType
 from family_pnl.models import Operation
@@ -44,7 +45,7 @@ class OperationCreate(BaseModel):
         default=None,
         description="Transfers between currencies; converted at the date's rate if omitted",
     )
-    operation_date: date | None = Field(
+    operation_date: Day | None = Field(
         default=None, description="Defaults to today in the household time zone"
     )
     comment: Comment | None = None
@@ -60,7 +61,7 @@ class OperationUpdate(BaseModel):
     account_id: uuid.UUID | None = None
     category_id: uuid.UUID | None = None
     target_amount: Amount | None = None
-    operation_date: date | None = None
+    operation_date: Day | None = None
     comment: Comment | None = None
 
 

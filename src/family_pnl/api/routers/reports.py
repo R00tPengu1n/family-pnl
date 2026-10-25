@@ -1,10 +1,10 @@
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Response, status
 
 from family_pnl.api.deps import CurrentUserDep, ReportServiceDep
 from family_pnl.api.errors import ErrorResponse
+from family_pnl.api.schemas.common import Day
 from family_pnl.api.schemas.reports import ReportOut
 from family_pnl.services.csv_export import report_csv, report_filename
 
@@ -18,8 +18,8 @@ router = APIRouter(
 )
 
 
-DateFrom = Annotated[date, Query(alias="from", examples=["2026-10-01"])]
-DateTo = Annotated[date, Query(alias="to", examples=["2026-10-31"])]
+DateFrom = Annotated[Day, Query(alias="from", examples=["2026-10-01"])]
+DateTo = Annotated[Day, Query(alias="to", examples=["2026-10-31"])]
 
 
 @router.get("", summary="Incomes and expenses of a period in the member's display currency")

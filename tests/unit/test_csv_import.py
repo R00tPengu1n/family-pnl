@@ -117,6 +117,8 @@ def test_quoted_cells_may_hold_the_separator() -> None:
         ({"date": "20.10.2026"}, "date", "Not a date in the form YYYY-MM-DD"),
         ({"date": "20261020"}, "date", "Not a date in the form YYYY-MM-DD"),
         ({"date": "2026-02-30"}, "date", "Not a date in the form YYYY-MM-DD"),
+        ({"date": "1999-12-31"}, "date", "Outside 2000-01-01 to 2099-12-31"),
+        ({"date": "2100-01-01"}, "date", "Outside 2000-01-01 to 2099-12-31"),
         ({"type": ""}, "type", "Required"),
         ({"type": "transfer"}, "type", "Must be income or expense"),
         ({"amount": ""}, "amount", "Required"),
@@ -213,3 +215,8 @@ def test_the_number_of_rows_is_limited() -> None:
     with pytest.raises(InvalidImportFileError) as raised:
         parse(HEADER + row * (MAX_ROWS + 1))
     assert str(raised.value) == f"The file has more than {MAX_ROWS} rows"
+
+
+@pytest.mark.parametrize("day", ["2000-01-01", "2099-12-31"])
+def test_the_first_and_last_accepted_dates_import(day: str) -> None:
+    assert parse(one_row(date=day)).errors == []

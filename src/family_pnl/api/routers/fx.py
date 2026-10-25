@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, status
 
 from family_pnl.api.deps import ClockDep, CurrentUserDep, RateServiceDep
 from family_pnl.api.errors import ErrorResponse
+from family_pnl.api.schemas.common import Day
 from family_pnl.api.schemas.fx import ConvertResponse, RatesResponse
 from family_pnl.core.clock import Clock
 from family_pnl.domain.currency import Currency
@@ -23,7 +24,7 @@ router = APIRouter(
 )
 
 DateQuery = Annotated[
-    date | None, Query(alias="date", description="Defaults to today in the household time zone")
+    Day | None, Query(alias="date", description="Defaults to today in the household time zone")
 ]
 
 

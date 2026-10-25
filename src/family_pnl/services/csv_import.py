@@ -34,7 +34,13 @@ from family_pnl.core.clock import Clock
 from family_pnl.core.errors import ValidationFailedError
 from family_pnl.domain.budgets import first_of_month
 from family_pnl.domain.currency import Currency
-from family_pnl.domain.ledger import CategoryKind, OperationType, category_key
+from family_pnl.domain.ledger import (
+    EARLIEST_DATE,
+    LATEST_DATE,
+    CategoryKind,
+    OperationType,
+    category_key,
+)
 from family_pnl.domain.money import CENT
 from family_pnl.models import Operation
 from family_pnl.repositories.ledger import (
@@ -224,12 +230,13 @@ class _RowParser:
         value = self._required("date")
         if value is None:
             return None
-        try:
-            if _ISO_DATE.fullmatch(value):
-                return date.fromisoformat(value)
-        except ValueError:
-            pass  # the form is right, the day is not: 2026-02-30
-        self._fail("date", "Not a date in the form YYYY-MM-DD")
+        day = _iso_date(value)
+        if day is None:
+            self._fail("date", "Not a date in the form YYYY-MM-DD")
+        elif not EARLIEST_DATE <= day <= LATEST_DATE:
+            self._fail("date", "Outside 2000-01-01 to 2099-12-31")
+        else:
+            return day
         return None
 
     def _type(self) -> OperationType | None:
@@ -303,6 +310,15 @@ class _RowParser:
             self._fail("comment", f"Longer than {MAX_COMMENT} characters")
             return None
         return value or None
+
+
+def _iso_date(value: str) -> date | None:
+    if not _ISO_DATE.fullmatch(value):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None  # the form is right, the day is not: 2026-02-30
 
 
 class CsvImportService:
