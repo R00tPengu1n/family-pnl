@@ -35,4 +35,7 @@ registration from the bot) and a way to connect an existing API account to Teleg
 - Whoever holds the bot secret can act as any Telegram-linked user. The secret lives only in
   `.env` / GitHub Secrets, is never logged (`SecretStr`), and must be rotated if leaked.
 - No refresh tokens for the bot: it re-exchanges the Telegram id when a token expires.
-- Telegram-only users cannot use email login until a later feature adds email and password.
+- Telegram-only users add an email and password with `/password` (updated 2026-10-25): the
+  bot asks the API for a one-time code of purpose `credentials` (`POST /bot/credentials-code`),
+  and the user sends the code, the email and the password straight to `POST /auth/credentials`,
+  rate-limited like logins. The password never passes through the chat or the bot.

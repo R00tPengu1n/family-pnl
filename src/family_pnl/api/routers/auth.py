@@ -16,7 +16,7 @@ from family_pnl.api.schemas.auth import (
     TokenResponse,
 )
 from family_pnl.api.schemas.settings import MemberSettingsIn, MemberSettingsOut
-from family_pnl.api.schemas.telegram import LinkCodeResponse
+from family_pnl.api.schemas.telegram import CredentialsRequest, LinkCodeResponse
 from family_pnl.services.settings import MemberChanges
 
 router = APIRouter(tags=["auth"])
@@ -46,6 +46,22 @@ async def register(body: RegisterRequest, auth: AuthServiceDep) -> MeResponse:
 )
 async def login(body: LoginRequest, auth: AuthServiceDep, ip: ClientIpDep) -> TokenResponse:
     return TokenResponse.of(await auth.login(body.email, body.password, ip=ip))
+
+
+@router.post(
+    "/auth/credentials",
+    summary="Set the email and password of a Telegram-only account with a code from the bot",
+    responses={
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+        status.HTTP_429_TOO_MANY_REQUESTS: {"model": ErrorResponse},
+    },
+)
+async def set_credentials(
+    body: CredentialsRequest, auth: AuthServiceDep, ip: ClientIpDep
+) -> MeResponse:
+    user_id = await auth.set_credentials(body.code, body.email, body.password, ip=ip)
+    return MeResponse.of(await auth.current_user(user_id))
 
 
 @router.post(

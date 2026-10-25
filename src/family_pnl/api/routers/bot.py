@@ -6,10 +6,12 @@ from family_pnl.api.deps import AuthServiceDep, TelegramServiceDep, require_bot
 from family_pnl.api.errors import ErrorResponse
 from family_pnl.api.schemas.auth import MeResponse
 from family_pnl.api.schemas.telegram import (
+    BotCredentialsCodeRequest,
     BotLinkRequest,
     BotRegisterRequest,
     BotTokenRequest,
     BotTokenResponse,
+    LinkCodeResponse,
 )
 
 router = APIRouter(
@@ -47,6 +49,21 @@ async def link(
 ) -> MeResponse:
     user_id = await telegram.link(body.code, body.telegram_id)
     return MeResponse.of(await auth.current_user(user_id))
+
+
+@router.post(
+    "/bot/credentials-code",
+    status_code=status.HTTP_201_CREATED,
+    summary="A one-time code (10 minutes) with which a Telegram user sets an email and password",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+    },
+)
+async def credentials_code(
+    body: BotCredentialsCodeRequest, telegram: TelegramServiceDep
+) -> LinkCodeResponse:
+    return LinkCodeResponse.of(await telegram.create_credentials_code(body.telegram_id))
 
 
 @router.post(

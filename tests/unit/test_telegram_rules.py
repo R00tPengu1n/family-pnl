@@ -8,6 +8,7 @@ from family_pnl.domain.telegram import (
     LINK_CODE_ALPHABET,
     LINK_CODE_LENGTH,
     LINK_CODE_LIFETIME,
+    CodePurpose,
     LinkCodeInvalidError,
     check_link_code_usable,
     format_link_code,
@@ -67,8 +68,35 @@ def test_codes_of_the_wrong_shape_are_invalid(typed: str) -> None:
     assert isinstance(info.value, ValidationFailedError)
 
 
-def test_fresh_code_is_usable() -> None:
-    check_link_code_usable(expires_at=NOW + timedelta(seconds=1), used_at=None, now=NOW)
+TELEGRAM = CodePurpose.TELEGRAM
+
+
+@pytest.mark.parametrize("purpose", list(CodePurpose))
+def test_fresh_code_is_usable_for_its_purpose(purpose: CodePurpose) -> None:
+    check_link_code_usable(
+        expires_at=NOW + timedelta(seconds=1),
+        used_at=None,
+        now=NOW,
+        purpose=purpose,
+        expected=purpose,
+    )
+
+
+def test_a_code_of_another_purpose_is_invalid() -> None:
+    with pytest.raises(LinkCodeInvalidError) as info:
+        check_link_code_usable(
+            expires_at=NOW + timedelta(minutes=5),
+            used_at=None,
+            now=NOW,
+            purpose=CodePurpose.CREDENTIALS,
+            expected=TELEGRAM,
+        )
+
+    assert info.value.message == "Link code is invalid or has expired"
+
+
+def test_code_purposes_are_stored_as_these_words() -> None:
+    assert [p.value for p in CodePurpose] == ["telegram", "credentials"]
 
 
 @pytest.mark.parametrize(
@@ -82,6 +110,8 @@ def test_fresh_code_is_usable() -> None:
 )
 def test_expired_or_used_code_is_invalid(expires_at: datetime, used_at: datetime | None) -> None:
     with pytest.raises(LinkCodeInvalidError) as info:
-        check_link_code_usable(expires_at=expires_at, used_at=used_at, now=NOW)
+        check_link_code_usable(
+            expires_at=expires_at, used_at=used_at, now=NOW, purpose=TELEGRAM, expected=TELEGRAM
+        )
 
     assert info.value.message == "Link code is invalid or has expired"

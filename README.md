@@ -153,6 +153,7 @@ only in `.env` and in GitHub Secrets.
 | `/start` | creates an account and a household, or welcomes back |
 | `/start <invite>` | joins the household of an invite code |
 | `/link <code>` | links an existing API account (code from `POST /me/telegram-link-code`) |
+| `/password` | a code to set an email and password with `POST /auth/credentials`; the bot never asks for the password |
 | `/account Карта BYN [общий]` | opens a personal account, or a shared one (owner) |
 | any text, e.g. `кофе 5.50` | records an expense; `+зарплата 2500 byn` records an income |
 | `/balance` | balances and their total in the display currency |
@@ -202,8 +203,6 @@ category, member, metric, amount, currency`), UTF-8 with a BOM for Excel.
 ## Limitations
 
 - One household per user; no web or mobile client — the bot and the REST API.
-- Members registered through the bot have no email or password yet, so they use the API
-  only through the bot.
 - Transfers are recorded through the API; the bot and the CSV import handle incomes and
   expenses.
 - Currencies: BYN, RUB and USD, at NBRB rates.

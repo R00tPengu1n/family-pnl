@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
 
+from family_pnl.api.schemas.auth import Password
 from family_pnl.services.telegram import AccessToken, IssuedLinkCode
 
 # Telegram user ids are positive and fit a signed 64-bit integer (the BIGINT column).
@@ -43,6 +44,28 @@ class BotRegisterRequest(BaseModel):
     display_name: Name | None = None
     household_name: Name = "Family"
     invite_code: str | None = Field(default=None, max_length=64)
+
+
+class BotCredentialsCodeRequest(BaseModel):
+    telegram_id: TelegramId
+
+
+class CredentialsRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "code": "K7Q2-M9XD",
+                    "email": "anna@example.com",
+                    "password": "correct horse battery",
+                }
+            ]
+        }
+    )
+
+    code: str = Field(max_length=32, description="From /password in the bot")
+    email: EmailStr
+    password: str = Password
 
 
 class BotTokenRequest(BaseModel):

@@ -16,6 +16,8 @@ from family_pnl.domain.identity import Role
 from family_pnl.domain.permissions import InviteInvalidError, check_invite_usable
 from family_pnl.domain.telegram import (
     LINK_CODE_LIFETIME,
+    CodePurpose,
+    CredentialsAlreadySetError,
     LinkCodeInvalidError,
     check_link_code_usable,
     format_link_code,
@@ -80,6 +82,31 @@ class TelegramService:
         await self._session.commit()
         return IssuedLinkCode(code=format_link_code(code), expires_at=stored.expires_at)
 
+    async def create_credentials_code(self, telegram_id: int) -> IssuedLinkCode:
+        """A code with which a Telegram-only user sets an email and password in the API.
+
+        The bot never asks for a password: it hands out this code, and the user sends the
+        password straight to the API (`POST /auth/credentials`).
+        """
+        user = await self._users.get_by_telegram_id(telegram_id)
+        if user is None:
+            raise TelegramNotRegisteredError("No account is registered for this Telegram user")
+        if user.email is not None:
+            raise CredentialsAlreadySetError("This account already has an email and password")
+        now = self._clock.now()
+        code = new_link_code()
+        stored = TelegramLinkCode(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            code_hash=hash_invite_code(code),
+            created_at=now,
+            expires_at=now + LINK_CODE_LIFETIME,
+            purpose=CodePurpose.CREDENTIALS,
+        )
+        self._link_codes.add(stored)
+        await self._session.commit()
+        return IssuedLinkCode(code=format_link_code(code), expires_at=stored.expires_at)
+
     async def link(self, typed_code: str, telegram_id: int) -> uuid.UUID:
         """Bind a Telegram account to the user who requested the code; return the user id."""
         now = self._clock.now()
@@ -88,7 +115,13 @@ class TelegramService:
         )
         if code is None:
             raise LinkCodeInvalidError("Link code is invalid or has expired")
-        check_link_code_usable(expires_at=code.expires_at, used_at=code.used_at, now=now)
+        check_link_code_usable(
+            expires_at=code.expires_at,
+            used_at=code.used_at,
+            now=now,
+            purpose=code.purpose,
+            expected=CodePurpose.TELEGRAM,
+        )
         user = await self._users.lock(code.user_id)
         if user.telegram_id is not None:
             raise TelegramAlreadyLinkedError("Another Telegram account is already linked")
