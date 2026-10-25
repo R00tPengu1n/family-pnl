@@ -4,6 +4,7 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
+from family_pnl_bot import api_client
 from family_pnl_bot.api_client import ApiClient, ApiError, Me
 from tests.integration.bot.conftest import CountingTransport, Monotonic
 
@@ -181,3 +182,19 @@ async def test_a_second_refusal_is_raised() -> None:
 
     assert raised.value.status == 401
     assert seen == ["token", "Bearer t0", "token", "Bearer t1"]
+
+
+async def test_expired_tokens_are_dropped_beyond_the_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(api_client, "SWEEP_ABOVE", 1)
+    client, _ = counting_api([200, 200, 200])
+    now = 0.0
+    client._now = lambda: now
+    await client.me(1)
+    await client.me(2)
+    now = 10_000.0
+
+    await client.me(3)
+
+    assert sorted(client._tokens) == [3]
