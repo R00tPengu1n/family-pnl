@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 import pytest
 
@@ -6,6 +7,8 @@ from family_pnl.core.errors import PermissionDeniedError, ValidationFailedError
 from family_pnl.domain.identity import Role
 from family_pnl.domain.ledger import (
     DEFAULT_CATEGORIES,
+    EARLIEST_DATE,
+    LATEST_DATE,
     AccountType,
     CategoryKind,
     OperationType,
@@ -150,3 +153,7 @@ def test_who_may_change_an_operation(
         assert info.value.message == (
             "Only its author or the household owner can change this operation"
         )
+
+
+def test_the_service_accepts_dates_of_this_century() -> None:
+    assert (date(2000, 1, 1), date(2099, 12, 31)) == (EARLIEST_DATE, LATEST_DATE)

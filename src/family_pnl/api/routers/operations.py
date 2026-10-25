@@ -1,11 +1,11 @@
 import uuid
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Response, status
 
 from family_pnl.api.deps import CsvImportServiceDep, CurrentUserDep, OperationServiceDep
 from family_pnl.api.errors import ErrorResponse
+from family_pnl.api.schemas.common import Day
 from family_pnl.api.schemas.operations import (
     ImportResultOut,
     OperationCreate,
@@ -74,8 +74,8 @@ async def import_operations(
 async def list_operations(
     user: CurrentUserDep,
     operations: OperationServiceDep,
-    date_from: date | None = None,
-    date_to: date | None = None,
+    date_from: Day | None = None,
+    date_to: Day | None = None,
     category_id: uuid.UUID | None = None,
     account_id: Annotated[
         uuid.UUID | None, Query(description="Either side of a transfer counts")

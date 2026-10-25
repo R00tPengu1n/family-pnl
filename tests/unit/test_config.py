@@ -18,6 +18,8 @@ def _clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         "FAMILY_PNL_DEFAULT_TIMEZONE",
         "FAMILY_PNL_BOT_API_SECRET",
         "FAMILY_PNL_TELEGRAM_BOT_TOKEN",
+        "FAMILY_PNL_BUDGET_WINDOW_START_DAY",
+        "FAMILY_PNL_BUDGET_WINDOW_END_DAY",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("FAMILY_PNL_DATABASE_URL", DATABASE_URL)
@@ -181,3 +183,22 @@ def test_validation_errors_do_not_show_secret_values(monkeypatch: pytest.MonkeyP
         Settings(_env_file=None)
 
     assert "short-but-secret" not in str(raised.value)
+
+
+def test_a_budget_window_that_ends_before_it_starts_is_rejected_at_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FAMILY_PNL_BUDGET_WINDOW_START_DAY", "25")
+    monkeypatch.setenv("FAMILY_PNL_BUDGET_WINDOW_END_DAY", "10")
+
+    with pytest.raises(ValidationError, match="must not end before it starts"):
+        Settings(_env_file=None)
+
+
+def test_a_one_day_budget_window_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAMILY_PNL_BUDGET_WINDOW_START_DAY", "25")
+    monkeypatch.setenv("FAMILY_PNL_BUDGET_WINDOW_END_DAY", "25")
+
+    settings = Settings(_env_file=None)
+
+    assert (settings.budget_window_start_day, settings.budget_window_end_day) == (25, 25)
