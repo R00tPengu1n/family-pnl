@@ -20,13 +20,12 @@ from family_pnl.domain.budgets import (
     require_budget_editor,
 )
 from family_pnl.domain.currency import Currency
-from family_pnl.domain.ledger import OperationType, check_category_fits
+from family_pnl.domain.ledger import ArchivedError, OperationType, check_category_fits
 from family_pnl.domain.money import CENT
 from family_pnl.models import Budget, BudgetLimit
 from family_pnl.repositories.budgets import BudgetRepository
 from family_pnl.repositories.ledger import CategoryRepository
 from family_pnl.services.auth import CurrentUser
-from family_pnl.services.operations import ArchivedError
 
 
 class BudgetNotFoundError(NotFoundError):

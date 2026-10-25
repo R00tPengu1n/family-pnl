@@ -20,6 +20,7 @@ from family_pnl.core.clock import Clock
 from family_pnl.core.errors import NotFoundError, ValidationFailedError
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.ledger import (
+    ArchivedError,
     OperationType,
     check_category_fits,
     check_transfer_accounts,
@@ -40,10 +41,6 @@ from family_pnl.services.fx import RateService
 
 class OperationNotFoundError(NotFoundError):
     pass
-
-
-class ArchivedError(ValidationFailedError):
-    code = "archived"
 
 
 class InvalidOperationError(ValidationFailedError):

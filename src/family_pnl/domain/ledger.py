@@ -30,6 +30,12 @@ class OperationType(StrEnum):
     TRANSFER = "transfer"
 
 
+class ArchivedError(ValidationFailedError):
+    """An archived account or category takes no new operations or limits."""
+
+    code = "archived"
+
+
 class CategoryKindMismatchError(ValidationFailedError):
     code = "category_kind_mismatch"
 

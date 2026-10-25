@@ -286,10 +286,11 @@ class _RowParser:
         value = self._cells.get("currency", "")
         if not value:
             return None if account is None else account.currency
-        if value.upper() not in Currency.__members__:
+        try:
+            return Currency.parse(value)
+        except ValueError:
             self._fail("currency", "Must be RUB, BYN or USD")
             return None
-        return Currency(value.upper())
 
     def _category(self, op_type: OperationType | None) -> CategoryRef | None:
         value = self._required("category")

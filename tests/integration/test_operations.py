@@ -239,3 +239,22 @@ async def test_an_operation_moves_to_another_category_of_its_kind(
     )
 
     assert response.json()["category_id"] == cafe
+
+
+async def test_unknown_fields_and_blank_comments_on_create(
+    client: AsyncClient, anna: Actor
+) -> None:
+    fields = {
+        "type": "expense",
+        "amount": "1",
+        "currency": "BYN",
+        "account_id": await account_of(client, anna),
+        "category_id": await category(client, anna, "Продукты"),
+    }
+
+    typo = await client.post("/operations", headers=anna.headers, json={**fields, "commnet": "x"})
+    blank = await client.post("/operations", headers=anna.headers, json={**fields, "comment": "  "})
+
+    assert typo.status_code == 422
+    assert blank.status_code == 201
+    assert blank.json()["comment"] is None
