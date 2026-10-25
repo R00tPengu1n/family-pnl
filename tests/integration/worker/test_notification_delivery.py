@@ -300,3 +300,55 @@ async def test_with_a_token_the_cron_job_sends_through_the_bot_api(
     await http.aclose()
 
     assert posted == [("/bot1:t/sendMessage", {"chat_id": ANNA_CHAT, "text": TEXT_80})]
+
+
+async def test_a_retry_after_a_partial_failure_skips_who_already_got_it(
+    context: WorkerContext,
+    sender: FakeSender,
+    family: dict[str, Any],
+    db_session: AsyncSession,
+    worker_clock: FrozenClock,
+) -> None:
+    notification_id = await notify(db_session, family["anna"], family["food"])
+    await db_session.execute(
+        update(User).where(User.id == family["ivan"].user_id).values(telegram_id=2002)
+    )
+    sender.failures[2002] = TelegramSendError("Telegram answered HTTP 502")
+
+    await deliver_with(context, sender)
+    del sender.failures[2002]
+    worker_clock.advance(timedelta(minutes=1))
+    await deliver_with(context, sender)
+
+    assert sender.sent == [(ANNA_CHAT, TEXT_80), (2002, TEXT_80)]
+    delivered = await row(db_session, notification_id)
+    assert delivered.attempts == 2
+    assert sorted(delivered.delivered_to) == sorted(
+        [str(family["anna"].user_id), str(family["ivan"].user_id)]
+    )
+
+
+async def test_a_broken_row_is_postponed_and_does_not_block_the_queue(
+    context: WorkerContext,
+    sender: FakeSender,
+    family: dict[str, Any],
+    db_session: AsyncSession,
+) -> None:
+    broken = await notify(
+        db_session, family["anna"], "not-a-uuid", key="broken", age=timedelta(minutes=5)
+    )
+    await notify(db_session, family["anna"], family["food"], key="good")
+
+    with structlog.testing.capture_logs() as logs:
+        handled = await deliver_with(context, sender)
+
+    assert handled == 2
+    assert sender.sent == [(ANNA_CHAT, TEXT_80)]
+    postponed = await row(db_session, broken)
+    assert (postponed.attempts, postponed.sent_at, postponed.next_attempt_at) == (
+        1,
+        None,
+        WORKER_NOW + timedelta(minutes=1),
+    )
+    failed = [log for log in logs if log["event"] == "notification_failed"]
+    assert [log["log_level"] for log in failed] == ["error"]

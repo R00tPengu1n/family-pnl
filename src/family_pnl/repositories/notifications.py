@@ -41,6 +41,10 @@ class NotificationRepository:
             .on_conflict_do_nothing(index_elements=["dedupe_key"])
         )
 
+    async def lock(self, notification_id: uuid.UUID) -> Notification:
+        """One notification, locked: to record a failure after a rollback."""
+        return await self._session.get_one(Notification, notification_id, with_for_update=True)
+
     async def lock_next_due(self, now: datetime) -> Notification | None:
         """The oldest notification due by `now`, locked; rows other workers hold are skipped."""
         return await self._session.scalar(

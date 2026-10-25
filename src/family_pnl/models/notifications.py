@@ -38,3 +38,7 @@ class Notification(Base):
     # Delivery (ADR-0009): due from this time; after too many failures it is given up.
     next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     gave_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Users who already got it: a retry after a partial failure skips them.
+    delivered_to: Mapped[list[str]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
