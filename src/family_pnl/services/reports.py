@@ -25,7 +25,7 @@ from family_pnl.domain.currency import Currency
 from family_pnl.domain.ledger import CategoryKind, OperationType
 from family_pnl.domain.money import Money
 from family_pnl.repositories.identity import HouseholdRepository
-from family_pnl.repositories.reports import ReportRepository
+from family_pnl.repositories.reports import CategoryName, ReportRepository, ReportRow
 from family_pnl.services.auth import CurrentUser
 from family_pnl.services.fx import RateService, RatesOnDate
 
@@ -122,45 +122,60 @@ class ReportService:
         target = user.display_currency
         rates = _RateCache(self._rates)
         categories = await self._reports.categories(user.household_id)
-        total = _Sums(target)
-        by_category: dict[uuid.UUID, Money] = {}
-        by_member: dict[uuid.UUID | None, _Sums] = {}
-        by_month: dict[date, _Sums] = {}
-        spent: dict[tuple[date, uuid.UUID], Money] = {}
+        sums = _Aggregate(target)
         for row in await self._reports.rows(user.household_id, date_from, date_to):
-            money = await rates.convert(Money(row.amount, row.currency), target, row.operation_date)
-            month = first_of_month(row.operation_date)
-            total.add(row.type, money)
-            by_category[row.category_id] = (
-                by_category.get(row.category_id, Money.zero(target)) + money
+            sums.add(
+                row,
+                await rates.convert(Money(row.amount, row.currency), target, row.operation_date),
             )
-            by_member.setdefault(row.author_id, _Sums(target)).add(row.type, money)
-            by_month.setdefault(month, _Sums(target)).add(row.type, money)
-            if row.type is OperationType.EXPENSE:
-                key = (month, row.category_id)
-                spent[key] = spent.get(key, Money.zero(target)) + money
+        return Report(
+            date_from=date_from,
+            date_to=date_to,
+            currency=target,
+            totals=sums.total.totals(),
+            by_category=sums.category_lines(categories),
+            by_member=await self._member_lines(user, sums.by_member),
+            by_month=[MonthLine(m, sums.by_month[m].totals()) for m in sorted(sums.by_month)],
+            plan_vs_actual=await self._plan_vs_actual(
+                user, date_from, date_to, rates, sums, categories
+            ),
+        )
 
+    async def _member_lines(
+        self, user: CurrentUser, by_member: dict[uuid.UUID | None, _Sums]
+    ) -> list[MemberLine]:
+        """Members in the order they joined; authors no longer in the household last."""
         members = await self._households.list_members(user.household_id)
         order: dict[uuid.UUID | None, int] = {u.id: i for i, (_, u) in enumerate(members)}
         names: dict[uuid.UUID | None, str | None] = {
             u.id: u.display_name or u.email for _, u in members
         }
-        category_lines = [
-            CategoryLine(c, categories[c].name, categories[c].kind, amount.rounded().amount)
-            for c, amount in by_category.items()
+        return [
+            MemberLine(author, names.get(author), sums.totals())
+            for author, sums in sorted(
+                by_member.items(), key=lambda item: order.get(item[0], len(order))
+            )
         ]
-        category_lines.sort(key=lambda line: (line.kind is not CategoryKind.INCOME, -line.amount))
 
+    async def _plan_vs_actual(
+        self,
+        user: CurrentUser,
+        date_from: date,
+        date_to: date,
+        rates: "_RateCache",
+        sums: "_Aggregate",
+        categories: dict[uuid.UUID, CategoryName],
+    ) -> list[PlanLine]:
         today = local_today(self._clock.now(), ZoneInfo(user.household_timezone))
-        plan: list[PlanLine] = []
         limits = await self._reports.limits(
             user.household_id, first_of_month(date_from), first_of_month(date_to)
         )
+        plan = []
         for limit in limits:
             planned = await rates.convert(
-                Money(limit.amount, limit.budget_currency), target, min(limit.month, today)
+                Money(limit.amount, limit.budget_currency), sums.currency, min(limit.month, today)
             )
-            actual = spent.get((limit.month, limit.category_id), Money.zero(target))
+            actual = sums.spent.get((limit.month, limit.category_id), Money.zero(sums.currency))
             planned_amount, actual_amount = planned.rounded().amount, actual.rounded().amount
             plan.append(
                 PlanLine(
@@ -172,23 +187,41 @@ class ReportService:
                     remaining=planned_amount - actual_amount,
                 )
             )
-        plan.sort(key=lambda line: (line.month, line.category))
+        return sorted(plan, key=lambda line: (line.month, line.category))
 
-        return Report(
-            date_from=date_from,
-            date_to=date_to,
-            currency=target,
-            totals=total.totals(),
-            by_category=category_lines,
-            by_member=[
-                MemberLine(author, names.get(author), sums.totals())
-                for author, sums in sorted(
-                    by_member.items(), key=lambda item: order.get(item[0], len(order))
-                )
-            ],
-            by_month=[MonthLine(m, by_month[m].totals()) for m in sorted(by_month)],
-            plan_vs_actual=plan,
-        )
+
+@dataclass(slots=True)
+class _Aggregate:
+    """Every figure of a report, summed exactly in the display currency."""
+
+    currency: Currency
+    total: _Sums = field(init=False)
+    by_category: dict[uuid.UUID, Money] = field(default_factory=dict)
+    by_member: dict[uuid.UUID | None, _Sums] = field(default_factory=dict)
+    by_month: dict[date, _Sums] = field(default_factory=dict)
+    spent: dict[tuple[date, uuid.UUID], Money] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.total = _Sums(self.currency)
+
+    def add(self, row: ReportRow, money: Money) -> None:
+        month = first_of_month(row.operation_date)
+        zero = Money.zero(self.currency)
+        self.total.add(row.type, money)
+        self.by_category[row.category_id] = self.by_category.get(row.category_id, zero) + money
+        self.by_member.setdefault(row.author_id, _Sums(self.currency)).add(row.type, money)
+        self.by_month.setdefault(month, _Sums(self.currency)).add(row.type, money)
+        if row.type is OperationType.EXPENSE:
+            key = (month, row.category_id)
+            self.spent[key] = self.spent.get(key, zero) + money
+
+    def category_lines(self, categories: dict[uuid.UUID, CategoryName]) -> list[CategoryLine]:
+        """Incomes first, then expenses, each from the largest amount."""
+        lines = [
+            CategoryLine(c, categories[c].name, categories[c].kind, amount.rounded().amount)
+            for c, amount in self.by_category.items()
+        ]
+        return sorted(lines, key=lambda line: (line.kind is not CategoryKind.INCOME, -line.amount))
 
 
 class _RateCache:
