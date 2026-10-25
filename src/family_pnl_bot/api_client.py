@@ -84,11 +84,26 @@ class ApiClient:
         json: Any = None,
         params: dict[str, str] | None = None,
     ) -> Any:
-        """Call the API as the user; the parsed JSON body, or None for an empty one."""
-        token = await self._access_token(telegram_id)
-        return await self._send(
-            method, path, json=json, params=params, headers={"Authorization": f"Bearer {token}"}
-        )
+        """Call the API as the user; the parsed JSON body, or None for an empty one.
+
+        A token the API no longer accepts (its clock ran ahead of the cache) is replaced
+        once, and the call repeated.
+        """
+        for attempt in range(2):
+            token = await self._access_token(telegram_id)
+            try:
+                return await self._send(
+                    method,
+                    path,
+                    json=json,
+                    params=params,
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            except ApiError as error:
+                if error.status != 401 or attempt == 1:
+                    raise
+                self._tokens.pop(telegram_id, None)
+        raise AssertionError("unreachable: the second attempt returns or raises")
 
     async def _access_token(self, telegram_id: int) -> str:
         cached = self._tokens.get(telegram_id)

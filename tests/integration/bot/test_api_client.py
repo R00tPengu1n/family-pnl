@@ -137,3 +137,47 @@ def test_me_is_read_from_the_api_format() -> None:
     }
 
     assert Me.of(body) == Me("u", "a@example.com", "Anna", "member", "Ivanovs")
+
+
+def counting_api(me_statuses: list[int]) -> tuple[ApiClient, list[str]]:
+    """/me answers with the given statuses in turn; every token is new."""
+    seen: list[str] = []
+    tokens = iter(range(100))
+    me = {
+        "id": "u",
+        "email": None,
+        "display_name": None,
+        "role": "owner",
+        "household": {"name": "Family"},
+    }
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/auth/telegram":
+            seen.append("token")
+            return httpx.Response(200, json={"access_token": f"t{next(tokens)}", "expires_in": 900})
+        seen.append(request.headers["Authorization"])
+        status = me_statuses.pop(0)
+        if status == 401:
+            return httpx.Response(401, json={"error": {"code": "unauthorized", "message": "x"}})
+        return httpx.Response(200, json=me)
+
+    return client_answering(httpx.MockTransport(respond)), seen
+
+
+async def test_a_refused_token_is_replaced_once() -> None:
+    client, seen = counting_api([401, 200])
+
+    me = await client.me(1)
+
+    assert me.role == "owner"
+    assert seen == ["token", "Bearer t0", "token", "Bearer t1"]
+
+
+async def test_a_second_refusal_is_raised() -> None:
+    client, seen = counting_api([401, 401])
+
+    with pytest.raises(ApiError) as raised:
+        await client.me(1)
+
+    assert raised.value.status == 401
+    assert seen == ["token", "Bearer t0", "token", "Bearer t1"]

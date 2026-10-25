@@ -26,8 +26,6 @@ from pydantic import SecretStr
 from redis.asyncio import Redis
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
-from testcontainers.community.postgres import PostgresContainer
-from testcontainers.community.redis import RedisContainer
 
 from family_pnl.api.deps import get_session
 from family_pnl.api.main import create_app
@@ -100,6 +98,9 @@ def database_url(worker_id: str) -> Iterator[str]:
     if url:
         yield _worker_database(url, worker_id)
         return
+    # Imported here: with servers configured (CI, local .env) testcontainers is not needed.
+    from testcontainers.community.postgres import PostgresContainer
+
     with PostgresContainer("postgres:16-alpine", driver="asyncpg") as postgres:
         yield postgres.get_connection_url()
 
@@ -110,6 +111,8 @@ def redis_url(worker_id: str) -> Iterator[str]:
     if url:
         yield _worker_redis(url, worker_id)
         return
+    from testcontainers.community.redis import RedisContainer
+
     with RedisContainer("redis:7-alpine") as container:
         host = container.get_container_host_ip()
         yield f"redis://{host}:{container.get_exposed_port(6379)}/0"

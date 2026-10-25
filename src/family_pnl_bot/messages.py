@@ -67,3 +67,24 @@ def display_currency(code: str) -> str:
 
 def currency_changed(code: str) -> str:
     return f"Готово: отчёты и балансы теперь в {code}."
+
+
+APPROVE_BUTTON = "Утвердить"
+LIMIT_USAGE = "Напишите категорию и сумму: /limit продукты 800"
+LIMIT_REFUSED = (
+    "Сейчас менять бюджет может только владелец: окно утверждения закрыто или бюджет уже утверждён."
+)
+APPROVE_REFUSED = "Утвердить бюджет может только владелец семьи."
+NOTHING_TO_APPROVE = "Бюджета на этот месяц ещё нет: сначала задайте лимиты через /limit."
+
+
+def no_expense_category(typed: str) -> str:
+    return f"Не нашёл категорию расходов «{typed}»."
+
+
+def limit_set(category: str, month: str, value: str) -> str:
+    return f"Лимит «{category}» на {month.lower()}: {value}."
+
+
+def approved(month: str) -> str:
+    return f"Бюджет на {month.lower()} утверждён."

@@ -110,6 +110,7 @@ async def test_commands_reach_their_handlers_with_their_dependencies(
     assert [router.name for router in telegram.dispatcher.sub_routers] == [
         "start",
         "reports",
+        "budget",
         "quick_entry",
     ]
 
@@ -124,7 +125,7 @@ async def test_messages_without_a_sender_get_no_answer(telegram: Telegram) -> No
     await telegram.feed("/start", None)
     await telegram.feed("/link CODE", None)
     await telegram.feed("кофе 5", None)
-    for command in ("/balance", "/report", "/currency"):
+    for command in ("/balance", "/report", "/currency", "/budget", "/limit x 1"):
         await telegram.feed(command, None)
 
     assert telegram.sent == []
@@ -241,3 +242,18 @@ async def test_balance_report_and_currency_commands_answer(
     assert report.splitlines()[0].endswith(", USD")
     assert previous.splitlines()[0].endswith(", USD")
     assert previous.splitlines()[0] != report.splitlines()[0]
+
+
+async def test_budget_limit_and_approve_reach_their_handlers(telegram: Telegram) -> None:
+    await telegram.feed("/start", ANNA)
+
+    await telegram.feed("/limit продукты 800", ANNA)
+    await telegram.feed("/budget", ANNA)
+    [[approve]] = telegram.buttons
+    await telegram.press(approve)
+    await telegram.press(approve, False)
+
+    assert telegram.sent[1].startswith("Лимит «Продукты» на ")
+    assert telegram.sent[2].startswith("Бюджет на ")
+    assert telegram.sent[3].endswith(" утверждён.")
+    assert len(telegram.sent) == 4  # the second press had no message to edit

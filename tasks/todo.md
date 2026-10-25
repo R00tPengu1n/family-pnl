@@ -653,11 +653,11 @@ set a limit (`/limit продукты 800`); owner sees an "Approve" button. API
 window or role are explained in Russian.
 
 **Acceptance criteria:**
-- [ ] Member sets a limit inside the window; outside it gets a clear message
-- [ ] Only the owner sees and can use "Approve"
+- [x] Member sets a limit inside the window; outside it gets a clear message
+- [x] Only the owner sees and can use "Approve"
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/bot/test_budget_handlers.py`
+- [x] `uv run pytest tests/integration/bot/test_budget_handlers.py`
 
 **Dependencies:** Tasks 18, 27
 **Files likely touched:** `handlers/budget.py`, `keyboards.py`, `api_client.py`, tests

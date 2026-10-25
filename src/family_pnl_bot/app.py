@@ -4,8 +4,9 @@ import httpx
 from aiogram import Bot, Dispatcher
 
 from family_pnl_bot.api_client import ApiClient
+from family_pnl_bot.budget import BudgetBot
 from family_pnl_bot.config import BotSettings
-from family_pnl_bot.handlers import quick_entry, reports, start
+from family_pnl_bot.handlers import budget, quick_entry, reports, start
 from family_pnl_bot.quick_entry import QuickEntry
 from family_pnl_bot.reports import Reports
 from family_pnl_bot.throttle import AttemptLimiter
@@ -17,11 +18,13 @@ def build_dispatcher(api: ApiClient, link_limiter: AttemptLimiter) -> Dispatcher
     # Commands first: quick entry takes every other text message.
     dispatcher.include_router(start.build_router())
     dispatcher.include_router(reports.build_router())
+    dispatcher.include_router(budget.build_router())
     dispatcher.include_router(quick_entry.build_router())
     dispatcher["api"] = api
     dispatcher["link_limiter"] = link_limiter
     dispatcher["quick_entry"] = QuickEntry(api)
     dispatcher["reports"] = Reports(api)
+    dispatcher["budget"] = BudgetBot(api)
     return dispatcher
 
 
