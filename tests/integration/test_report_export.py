@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 
 from family_pnl.core.clock import FrozenClock
-from tests.integration.helpers import Actor
+from tests.integration.helpers import Actor, sign_up
 from tests.integration.ledger_helpers import new_account, record
 from tests.integration.report_helpers import NOW, PERIOD, build_family, install_rates
 from tests.integration.test_rate_service import FakeSource
@@ -83,10 +83,10 @@ async def test_amounts_are_plain_decimals(client: AsyncClient, family: dict[str,
     assert ["month", "2026-09", "", "", "net", "-50.00", "BYN"] in rows
 
 
-async def test_the_file_is_an_attachment_named_after_the_period(
-    client: AsyncClient, family: dict[str, Any]
-) -> None:
-    response = await client.get(EXPORT, headers=family["anna"].headers)
+async def test_the_file_is_an_attachment_named_after_the_period(client: AsyncClient) -> None:
+    anna = await sign_up(client, "anna@example.com")
+
+    response = await client.get(EXPORT, headers=anna.headers)
 
     assert response.headers["content-type"] == "text/csv; charset=utf-8"
     assert (
@@ -96,35 +96,34 @@ async def test_the_file_is_an_attachment_named_after_the_period(
 
 
 @pytest.mark.parametrize("name", ["=HYPERLINK(1)", "+1", "-1", "@SUM(A1)"])
-async def test_category_names_cannot_become_formulas(
-    client: AsyncClient, family: dict[str, Any], name: str
-) -> None:
-    anna = family["anna"]
+async def test_category_names_cannot_become_formulas(client: AsyncClient, name: str) -> None:
+    # A household of its own: amounts in its base currency need no rates.
+    anna = await sign_up(client, "anna@example.com")
     created = await client.post(
         "/categories", headers=anna.headers, json={"name": name, "kind": "expense"}
     )
     assert created.status_code == 201, created.text
-    card = await new_account(client, anna, "BYN", "Wallet")
+    card = await new_account(client, anna, "RUB", "Wallet")
     await record(
         client,
         anna,
         type="expense",
         amount="1",
-        currency="BYN",
+        currency="RUB",
         account_id=card,
         category_id=created.json()["id"],
     )
 
     rows = await export(client, anna)
 
-    assert ["category", "", f"'{name}", "", "expense", "1.00", "BYN"] in rows
+    assert ["category", "", f"'{name}", "", "expense", "1.00", "RUB"] in rows
 
 
-async def test_an_invalid_period_is_rejected_as_in_the_report(
-    client: AsyncClient, family: dict[str, Any]
-) -> None:
+async def test_an_invalid_period_is_rejected_as_in_the_report(client: AsyncClient) -> None:
+    anna = await sign_up(client, "anna@example.com")
+
     response = await client.get(
-        "/reports/export.csv?from=2026-10-02&to=2026-10-01", headers=family["anna"].headers
+        "/reports/export.csv?from=2026-10-02&to=2026-10-01", headers=anna.headers
     )
 
     assert response.status_code == 422

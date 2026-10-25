@@ -10,6 +10,8 @@ class BotSettings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        # A validation error must not print the values: they include secrets.
+        hide_input_in_errors=True,
     )
 
     # From @BotFather; the same token the worker sends notifications with.

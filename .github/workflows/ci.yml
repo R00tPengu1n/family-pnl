@@ -82,6 +82,21 @@ jobs:
       - name: pytest with the coverage gate (85% floor or the recorded ratchet)
         run: uv run pytest -n auto --dist loadgroup --cov --cov-fail-under="$(python scripts/ratchet.py)" --cov-report=term-missing
 
+  docker:
+    name: Docker image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the image
+        run: docker build -t family-pnl:ci .
+      - name: The image runs as a non-root user
+        run: test "$(docker run --rm family-pnl:ci id -u)" != "0"
+      - name: The image contains the API, the worker and the bot
+        run: docker run --rm family-pnl:ci python -c "import family_pnl.api.main, family_pnl.worker.settings, family_pnl_bot.app"
+      - name: docker-compose.yml is valid with the example settings
+        run: cp .env.example .env && docker compose config --quiet
+
   dependencies:
     name: Dependency audit
     runs-on: ubuntu-24.04

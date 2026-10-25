@@ -1,0 +1,96 @@
+# The whole service: API, worker, bot, PostgreSQL and Redis, migrations applied first.
+# Settings and secrets come from .env (see .env.example).
+#
+#   docker compose up --build -d
+#   curl http://127.0.0.1:8000/health
+#
+# Only the API port is published, on localhost by default (API_BIND=0.0.0.0 to expose it,
+# behind a reverse proxy with HTTPS). PostgreSQL and Redis stay inside the compose network.
+name: family-pnl
+
+x-app: &app
+  build: .
+  image: family-pnl:local
+  env_file: .env
+  environment:
+    FAMILY_PNL_ENVIRONMENT: production
+    FAMILY_PNL_LOG_JSON: "true"
+    FAMILY_PNL_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    FAMILY_PNL_REDIS_URL: redis://redis:6379/0
+    FAMILY_PNL_API_URL: http://api:8000
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    ports:
+      - "${API_BIND:-127.0.0.1}:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *app
+    command: ["arq", "family_pnl.worker.settings.WorkerSettings"]
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  bot:
+    <<: *app
+    # Needs FAMILY_PNL_TELEGRAM_BOT_TOKEN and FAMILY_PNL_BOT_API_SECRET in .env.
+    command: ["python", "-m", "family_pnl_bot"]
+    healthcheck:
+      disable: true
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:

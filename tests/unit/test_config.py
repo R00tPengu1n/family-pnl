@@ -172,3 +172,12 @@ def test_the_telegram_token_is_hidden_in_repr(monkeypatch: pytest.MonkeyPatch) -
     assert settings.telegram_bot_token is not None
     assert settings.telegram_bot_token.get_secret_value() == "123456:telegram-token"
     assert settings.telegram_api_url == "https://api.telegram.org"
+
+
+def test_validation_errors_do_not_show_secret_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAMILY_PNL_BOT_API_SECRET", "short-but-secret")
+
+    with pytest.raises(ValidationError) as raised:
+        Settings(_env_file=None)
+
+    assert "short-but-secret" not in str(raised.value)
