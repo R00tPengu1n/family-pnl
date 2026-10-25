@@ -86,8 +86,12 @@ class RateService:
         return RatesOnDate(day, quotes)
 
     async def store(self, day: date, rates: dict[Currency, Decimal]) -> None:
+        """Add the rates to the caller's transaction; the caller commits.
+
+        Rates are looked up in the middle of other work (an expense and its budget check),
+        so committing here would commit that work half done.
+        """
         await self._rates.add_missing(day, rates, fetched_at=self._clock.now())
-        await self._session.commit()
 
     async def _last_known(self, day: date, quotes: dict[Currency, Quote]) -> RatesOnDate:
         for currency in QUOTED:

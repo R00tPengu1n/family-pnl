@@ -32,6 +32,10 @@ rate when a date has none, and the last known rate when NBRB is down.
 - **Fallbacks are labelled, not stored.** Every quote carries its own `rate_date`; a fallback is
   never written under the requested date, so the real rate can still arrive later.
 - The daily refresh of the current rate is a worker job (Task 24); the API fetches on demand.
+- **Transactions.** Fetched rates are added to the caller's transaction, never committed on
+  their own: a rate lookup inside an expense's budget check must not commit the expense
+  before its notification (ADR-0009). A request that ends without an error is committed at
+  the end, so rates fetched while only reading are kept; the worker commits its own.
 
 ## Consequences
 

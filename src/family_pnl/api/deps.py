@@ -38,10 +38,16 @@ def get_engine(request: Request) -> AsyncEngine:
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
-    """One session per request; services decide when to commit."""
+    """One session per request; services commit their changes.
+
+    A request that ends without an error is committed once more at the end: that keeps
+    exchange rates fetched while only reading (a report, balances), which services add
+    to the session without committing. An error rolls everything back.
+    """
     factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
     async with factory() as session:
         yield session
+        await session.commit()
 
 
 def get_clock(request: Request) -> Clock:
