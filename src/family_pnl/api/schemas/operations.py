@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
 from family_pnl.api.schemas.common import Day
 from family_pnl.domain.currency import Currency
@@ -13,11 +13,23 @@ from family_pnl.services.csv_import import ImportResult
 
 # NUMERIC(14, 2): positive, at most two decimals and twelve digits before the point.
 Amount = Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
-Comment = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
+
+
+def _blank_is_none(value: str | None) -> str | None:
+    return value or None
+
+
+# Stripped; a comment of only spaces is stored as no comment.
+Comment = Annotated[
+    str | None,
+    StringConstraints(strip_whitespace=True, max_length=500),
+    AfterValidator(_blank_is_none),
+]
 
 
 class OperationCreate(BaseModel):
     model_config = ConfigDict(
+        extra="forbid",
         json_schema_extra={
             "examples": [
                 {
@@ -30,7 +42,7 @@ class OperationCreate(BaseModel):
                     "comment": "Молоко",
                 }
             ]
-        }
+        },
     )
 
     type: OperationType
@@ -48,7 +60,7 @@ class OperationCreate(BaseModel):
     operation_date: Day | None = Field(
         default=None, description="Defaults to today in the household time zone"
     )
-    comment: Comment | None = None
+    comment: Comment = None
 
 
 class OperationUpdate(BaseModel):
@@ -62,7 +74,7 @@ class OperationUpdate(BaseModel):
     category_id: uuid.UUID | None = None
     target_amount: Amount | None = None
     operation_date: Day | None = None
-    comment: Comment | None = None
+    comment: Comment = None
 
 
 class OperationOut(BaseModel):
