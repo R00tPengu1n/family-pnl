@@ -1,5 +1,6 @@
 """Registration, login and resolving the current user from an access token."""
 
+import asyncio
 import uuid
 from dataclasses import dataclass
 
@@ -99,9 +100,9 @@ class AuthService:
             raise EmailTakenError("An account with this email already exists")
 
         now = self._clock.now()
-        user = User(
-            id=uuid.uuid4(), email=email, password_hash=hash_password(password), created_at=now
-        )
+        # argon2 takes tens of milliseconds of CPU: off the event loop, other requests go on.
+        password_hash = await asyncio.to_thread(hash_password, password)
+        user = User(id=uuid.uuid4(), email=email, password_hash=password_hash, created_at=now)
         household, membership = Household.with_owner(
             user.id, name=household_name, timezone=self._settings.default_timezone, now=now
         )
@@ -120,14 +121,14 @@ class AuthService:
         return _current_user(user, membership, household)
 
     async def login(self, email: str, password: str, *, ip: str) -> TokenPair:
-        # Checked before hashing: refused attempts cost no argon2 work.
-        await self._login_limiter.check(email, ip)
+        # Counted before hashing: refused attempts cost no argon2 work.
+        await self._login_limiter.reserve(email, ip)
         user = await self._users.get_by_email(normalize_email(email))
         password_hash = user.password_hash if user is not None else None
-        if not verify_password_or_dummy(password_hash, password) or user is None:
-            await self._login_limiter.record_failure(email, ip)
+        valid = await asyncio.to_thread(verify_password_or_dummy, password_hash, password)
+        if not valid or user is None:
             raise InvalidCredentialsError("Email or password is incorrect")
-        await self._login_limiter.reset_email(email)
+        await self._login_limiter.succeeded(email, ip)
         tokens = self._issue_tokens(user.id, family_id=uuid.uuid4())
         await self._session.commit()
         return tokens

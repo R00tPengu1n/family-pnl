@@ -11,6 +11,7 @@ from pydantic import SecretStr
 from redis.asyncio import Redis
 
 from family_pnl.core.config import Settings
+from family_pnl.core.errors import RateLimitedError
 from family_pnl.core.redis import create_redis
 from family_pnl.services.rate_limit import LoginRateLimiter
 
@@ -140,12 +141,48 @@ async def test_limiter_fails_open_when_redis_is_down(settings: Settings) -> None
     limiter = LoginRateLimiter(dead, settings)
     try:
         with structlog.testing.capture_logs() as logs:
-            await limiter.check("anna@example.com", "192.0.2.1")
-            await limiter.record_failure("anna@example.com", "192.0.2.1")
-            await limiter.reset_email("anna@example.com")
+            await limiter.reserve("anna@example.com", "192.0.2.1")
+            await limiter.succeeded("anna@example.com", "192.0.2.1")
     finally:
         await dead.aclose()
         server.close()
         await server.wait_closed()
 
-    assert [log["event"] for log in logs] == ["rate_limit_unavailable"] * 3
+    assert [log["event"] for log in logs] == ["rate_limit_unavailable"] * 2
+
+
+async def test_parallel_attempts_cannot_slip_under_the_limit(
+    login_limiter: LoginRateLimiter,
+) -> None:
+    async def attempt() -> bool:
+        try:
+            await login_limiter.reserve("anna@example.com", "192.0.2.1")
+        except RateLimitedError:
+            return False
+        return True
+
+    passed = await asyncio.gather(*(attempt() for _ in range(12)))
+
+    assert passed.count(True) == 5
+
+
+async def test_successful_logins_from_one_address_never_add_up(
+    client: AsyncClient, from_ip: Callable[[str], AsyncClient]
+) -> None:
+    # A family behind one home router logs in many times a day.
+    for n in range(7):
+        await register(client, f"member{n}@example.com")
+    async with from_ip("198.51.100.7") as home:
+        statuses = [
+            (await login(home, f"member{n}@example.com", PASSWORD)).status_code for n in range(7)
+        ]
+
+    assert statuses == [200] * 7
+
+
+async def test_giving_back_an_expired_attempt_leaves_no_counter(
+    login_limiter: LoginRateLimiter, redis: Redis
+) -> None:
+    await login_limiter.succeeded("anna@example.com", "192.0.2.9")
+
+    assert await redis.keys("login:fail:*") == []
