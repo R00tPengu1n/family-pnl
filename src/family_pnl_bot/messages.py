@@ -18,7 +18,11 @@ ERRORS = {
 }
 UNKNOWN_ERROR = "Что-то пошло не так. Попробуйте ещё раз."
 
-HELP = "Записывайте траты и доходы одним сообщением: «кофе 5.50», «+зарплата 2500 byn»."
+HELP = (
+    "Записывайте траты и доходы одним сообщением: «кофе 5.50», «+зарплата 2500 byn».\n"
+    "Сначала откройте счёт: /account Карта BYN. Ещё: /balance, /report, /budget, /limit, "
+    "/currency, /input."
+)
 
 LINK_USAGE = "Отправьте код из приложения: /link K7Q2-M9XD"
 LINK_THROTTLED = "Слишком много попыток. Попробуйте через 15 минут."
@@ -46,7 +50,7 @@ def linked(account: str) -> str:
 
 CHOOSE_CATEGORY = "Какая категория?"
 CHOOSE_ACCOUNT = "С какого счёта?"
-NO_ACCOUNTS = "Сначала заведите счёт в приложении: без него записать нельзя."
+NO_ACCOUNTS = "Сначала заведите счёт: /account Карта BYN"
 ENTRY_EXPIRED = "Эта запись устарела. Отправьте сообщение ещё раз."
 ENTRY_UNDONE = "Запись отменена."
 ENTRY_ALREADY_GONE = "Этой записи уже нет."
@@ -58,7 +62,7 @@ def recorded(*, income: bool, amount: str, category: str, account: str) -> str:
     return f"{kind} {amount} записан: «{category}», счёт «{account}»."
 
 
-NO_ACCOUNTS_YET = "Счетов пока нет. Заведите первый в приложении."
+NO_ACCOUNTS_YET = "Счетов пока нет. Заведите первый: /account Карта BYN"
 
 
 def display_currency(code: str) -> str:
@@ -88,3 +92,24 @@ def limit_set(category: str, month: str, value: str) -> str:
 
 def approved(month: str) -> str:
     return f"Бюджет на {month.lower()} утверждён."
+
+
+def input_currency(code: str) -> str:
+    return f"Сумма без валюты записывается в {code}. Выберите другую валюту:"
+
+
+def input_currency_changed(code: str) -> str:
+    return f"Готово: сумма без валюты теперь в {code}."
+
+
+ACCOUNT_USAGE = (
+    "Напишите название и валюту: /account Карта BYN (добавьте «общий» для общего счёта)."
+)
+
+
+def account_created(name: str, currency: str, shared: bool) -> str:
+    kind = "Общий счёт" if shared else "Счёт"
+    return f"{kind} «{name}» в {currency} создан."
+
+
+SHARED_ACCOUNT_REFUSED = "Общий счёт может открыть только владелец семьи."

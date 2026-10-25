@@ -103,7 +103,9 @@ async def test_the_balance_lists_accounts_and_the_total(api: FakeApi) -> None:
 async def test_the_balance_without_accounts(api: FakeApi) -> None:
     api.answers["/accounts/balances"] = {"display_currency": "RUB", "total": "0", "accounts": []}
 
-    assert await reports(api).balance(ME) == Reply("Счетов пока нет. Заведите первый в приложении.")
+    assert await reports(api).balance(ME) == Reply(
+        "Счетов пока нет. Заведите первый: /account Карта BYN"
+    )
 
 
 async def test_the_report_covers_this_month_in_the_household_time_zone(api: FakeApi) -> None:
