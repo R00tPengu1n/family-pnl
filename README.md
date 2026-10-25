@@ -1,5 +1,7 @@
 # Family P&L
 
+[![CI](https://github.com/R00tPengu1n/family-pnl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/R00tPengu1n/family-pnl/actions/workflows/ci.yml)
+
 [Русская версия](README.ru.md)
 
 A service for a family's shared finances. Every member records their own incomes and
@@ -47,6 +49,30 @@ Details, the layers of the API and the decisions behind them:
 Stack: Python 3.13, FastAPI, Pydantic v2, SQLAlchemy 2 (async) with asyncpg, Alembic,
 PostgreSQL 16, Redis 7, arq, aiogram 3, httpx, structlog, uv; ruff, mypy (strict),
 pytest; Docker and GitHub Actions.
+
+## Engineering decisions
+
+- **Exact money.** `Decimal` end to end, rates parsed from JSON without floats; each amount is
+  converted at the rate of its own date and rounded once ([ADR-0008](docs/adr/0008-fx-conversion-rules.md)).
+- **Notifications through an outbox.** An expense and the notification it triggers are written
+  in one transaction; the worker delivers, retries with backoff and never repeats a member who
+  already got it ([ADR-0009](docs/adr/0009-notifications-outbox.md)).
+- **Household isolation.** Every query is scoped to the caller's household; foreign objects
+  answer 404 like missing ones, covered by isolation tests ([ADR-0004](docs/adr/0004-household-isolation.md)).
+- **Tokens.** Refresh tokens rotate on every use; reusing an old one revokes its whole family
+  ([ADR-0005](docs/adr/0005-refresh-token-rotation.md)). Login attempts are counted atomically
+  in Redis and the limiter fails open ([ADR-0006](docs/adr/0006-login-rate-limiting.md)).
+- **A bot without database access.** The bot is an API client with the user's own rights; an
+  import-linter contract forbids it to import the service ([ADR-0007](docs/adr/0007-bot-authentication.md)).
+- **Quality gates in CI.** ruff, mypy strict, layer contracts, tests on real PostgreSQL with a
+  coverage ratchet, mutation testing of the domain, gitleaks, Semgrep, pip-audit, Docker build.
+
+## How it is built
+
+The specification ([SPEC.md](SPEC.md)), the task plan ([tasks/](tasks/)) and the quality bar
+([CONSTRAINTS.md](CONSTRAINTS.md)) are written first; most of the code is written by an AI
+coding agent (Claude Code) working through that plan in small pull requests. Every pull
+request passes the same automated gates, and decisions are recorded as ADRs.
 
 ## Run it with Docker
 

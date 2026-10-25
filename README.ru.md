@@ -1,5 +1,7 @@
 # Family P&L
 
+[![CI](https://github.com/R00tPengu1n/family-pnl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/R00tPengu1n/family-pnl/actions/workflows/ci.yml)
+
 [English version](README.md)
 
 Сервис для общих финансов семьи. Каждый участник записывает свои доходы и расходы — в BYN,
@@ -48,6 +50,30 @@ flowchart LR
 Стек: Python 3.13, FastAPI, Pydantic v2, SQLAlchemy 2 (async) с asyncpg, Alembic,
 PostgreSQL 16, Redis 7, arq, aiogram 3, httpx, structlog, uv; ruff, mypy (strict),
 pytest; Docker и GitHub Actions.
+
+## Инженерные решения
+
+- **Точные деньги.** `Decimal` везде, курсы читаются из JSON без float; каждая сумма
+  пересчитывается по курсу своей даты с одним округлением ([ADR-0008](docs/adr/0008-fx-conversion-rules.md)).
+- **Уведомления через outbox.** Расход и вызванное им уведомление пишутся в одной транзакции;
+  воркер доставляет, повторяет с задержкой и не шлёт повторно тем, кто уже получил
+  ([ADR-0009](docs/adr/0009-notifications-outbox.md)).
+- **Изоляция семей.** Каждый запрос ограничен семьёй пользователя; чужие объекты отвечают 404,
+  как несуществующие; это проверяют тесты изоляции ([ADR-0004](docs/adr/0004-household-isolation.md)).
+- **Токены.** Refresh-токены меняются при каждом использовании; повтор старого отзывает всё
+  семейство ([ADR-0005](docs/adr/0005-refresh-token-rotation.md)). Попытки входа считаются
+  атомарно в Redis, при его сбое лимитер пропускает ([ADR-0006](docs/adr/0006-login-rate-limiting.md)).
+- **Бот без доступа к базе.** Бот — клиент API с правами самого пользователя; контракт
+  import-linter запрещает ему импортировать сервис ([ADR-0007](docs/adr/0007-bot-authentication.md)).
+- **Проверки в CI.** ruff, mypy strict, контракты слоёв, тесты на настоящем PostgreSQL с
+  храповиком покрытия, мутационное тестирование домена, gitleaks, Semgrep, pip-audit, сборка Docker.
+
+## Как это сделано
+
+Сначала пишутся спецификация ([SPEC.md](SPEC.md)), план задач ([tasks/](tasks/)) и планка
+качества ([CONSTRAINTS.md](CONSTRAINTS.md)); большую часть кода пишет ИИ-агент (Claude Code),
+проходя этот план небольшими pull request'ами. Каждый pull request проходит одни и те же
+автоматические проверки, решения фиксируются в ADR.
 
 ## Запуск в Docker
 
