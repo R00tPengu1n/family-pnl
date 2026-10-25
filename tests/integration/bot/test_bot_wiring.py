@@ -131,6 +131,7 @@ async def test_messages_without_a_sender_get_no_answer(telegram: Telegram) -> No
         "/currency",
         "/input",
         "/account Карта BYN",
+        "/password",
         "/budget",
         "/limit x 1",
     ):
@@ -295,3 +296,11 @@ async def test_the_bot_stays_silent_in_groups(telegram: Telegram, api: ApiClient
 
     assert len(telegram.sent) == 1  # only the private /start
     assert (await api.request(ANNA, "GET", "/operations"))["items"] == []
+
+
+async def test_password_hands_out_a_code_for_the_api(telegram: Telegram) -> None:
+    await telegram.feed("/start", ANNA)
+
+    await telegram.feed("/password", ANNA)
+
+    assert telegram.sent[1].startswith("Код для email и пароля: ")

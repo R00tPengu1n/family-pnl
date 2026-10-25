@@ -8,8 +8,9 @@ combinations; a code lives 10 minutes and works once.
 import re
 import secrets
 from datetime import datetime, timedelta
+from enum import StrEnum
 
-from family_pnl.core.errors import ValidationFailedError
+from family_pnl.core.errors import ConflictError, ValidationFailedError
 
 LINK_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 LINK_CODE_LENGTH = 8
@@ -23,6 +24,17 @@ _VALID = re.compile(f"[{LINK_CODE_ALPHABET}]{{{LINK_CODE_LENGTH}}}")
 
 class LinkCodeInvalidError(ValidationFailedError):
     code = "link_code_invalid"
+
+
+class CredentialsAlreadySetError(ConflictError):
+    code = "credentials_already_set"
+
+
+class CodePurpose(StrEnum):
+    """What a one-time code does when it is used."""
+
+    TELEGRAM = "telegram"  # link this Telegram account to the API user who asked for it
+    CREDENTIALS = "credentials"  # give the Telegram user who asked for it an email and password
 
 
 def new_link_code() -> str:
@@ -42,7 +54,12 @@ def normalize_link_code(typed: str) -> str:
 
 
 def check_link_code_usable(
-    *, expires_at: datetime, used_at: datetime | None, now: datetime
+    *,
+    expires_at: datetime,
+    used_at: datetime | None,
+    now: datetime,
+    purpose: CodePurpose,
+    expected: CodePurpose,
 ) -> None:
-    if used_at is not None or now >= expires_at:
+    if used_at is not None or now >= expires_at or purpose is not expected:
         raise LinkCodeInvalidError("Link code is invalid or has expired")

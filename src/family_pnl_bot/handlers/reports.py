@@ -4,7 +4,7 @@ from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import CallbackQuery, Message
 
-from family_pnl_bot.accounts import create_account
+from family_pnl_bot.accounts import create_account, credentials_code
 from family_pnl_bot.api_client import ApiClient
 from family_pnl_bot.keyboards import markup
 from family_pnl_bot.quick_entry import Reply
@@ -36,6 +36,11 @@ async def on_account(message: Message, command: CommandObject, api: ApiClient) -
         await _answer(message, await create_account(api, message.from_user.id, command.args))
 
 
+async def on_password(message: Message, api: ApiClient) -> None:
+    if message.from_user is not None:
+        await _answer(message, await credentials_code(api, message.from_user.id))
+
+
 async def on_report_month(callback: CallbackQuery, reports: Reports) -> None:
     await _edit(callback, await reports.report(callback.from_user.id, callback.data))
 
@@ -61,6 +66,7 @@ def build_router() -> Router:
     router.message.register(on_currency, Command("currency"))
     router.message.register(on_input, Command("input"))
     router.message.register(on_account, Command("account"))
+    router.message.register(on_password, Command("password"))
     router.callback_query.register(on_report_month, F.data.startswith(f"{REPORT_PREFIX}:"))
     for prefix in (CURRENCY_PREFIX, INPUT_PREFIX):
         router.callback_query.register(on_currency_choice, F.data.startswith(f"{prefix}:"))

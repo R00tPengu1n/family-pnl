@@ -36,3 +36,12 @@ async def create_account(api: ApiClient, telegram_id: int, args: str | None) -> 
             return Reply(messages.SHARED_ACCOUNT_REFUSED)
         return Reply(messages.error_text(error))
     return Reply(messages.account_created(name, currency, shared))
+
+
+async def credentials_code(api: ApiClient, telegram_id: int) -> Reply:
+    """/password: a code to set an email and password in the API; the bot never asks for one."""
+    try:
+        code = await api.credentials_code(telegram_id)
+    except ApiError as error:
+        return Reply(messages.error_text(error))
+    return Reply(messages.credentials_code(code))
