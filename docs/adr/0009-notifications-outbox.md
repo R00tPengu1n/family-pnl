@@ -30,8 +30,12 @@ can be slow or down, and the worker can restart at any time.
 - The worker runs every minute and handles at most 100 due rows per run, each in its own
   transaction: lock (`FOR UPDATE SKIP LOCKED`), send to every member of the household,
   set `sent_at`, commit.
-- Members without a linked Telegram, and chats that refuse the bot (HTTP 400/403), are
-  skipped with a log entry; the row still counts as sent.
+- Members without a linked Telegram, and chats that cannot receive (HTTP 403, or 400
+  "chat not found"), are skipped with a log entry; the row still counts as sent.
+- A message Telegram refuses (any other 400, e.g. too long) is given up at once: the same
+  text cannot go through later.
+- A refused token (401, 404) stops the run and leaves every row as it is, so a wrong
+  token is fixed without losing notifications (updated 2026-10-25).
 - Network errors, 429 and 5xx postpone the row: `next_attempt_at` grows 1, 2, 4… minutes
   up to six hours; after 10 failures `gave_up_at` is set and an error is logged.
 - Without `FAMILY_PNL_TELEGRAM_BOT_TOKEN` the job logs a warning and rows keep waiting.

@@ -15,7 +15,12 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from family_pnl.core.clock import FrozenClock
-from family_pnl.integrations.telegram import TelegramChatUnavailableError, TelegramSendError
+from family_pnl.integrations.telegram import (
+    TelegramChatUnavailableError,
+    TelegramMessageRejectedError,
+    TelegramSendError,
+    TelegramTokenRejectedError,
+)
 from family_pnl.models import Notification, User
 from family_pnl.repositories.notifications import NotificationRepository
 from family_pnl.worker import context as worker_context
@@ -352,3 +357,44 @@ async def test_a_broken_row_is_postponed_and_does_not_block_the_queue(
     )
     failed = [log for log in logs if log["event"] == "notification_failed"]
     assert [log["log_level"] for log in failed] == ["error"]
+
+
+async def test_a_message_telegram_refuses_is_given_up_at_once(
+    context: WorkerContext,
+    sender: FakeSender,
+    family: dict[str, Any],
+    db_session: AsyncSession,
+) -> None:
+    notification_id = await notify(db_session, family["anna"], family["food"])
+    sender.failures[ANNA_CHAT] = TelegramMessageRejectedError(
+        "Telegram answered HTTP 400: too long"
+    )
+
+    with structlog.testing.capture_logs() as logs:
+        await deliver_with(context, sender)
+
+    rejected = await row(db_session, notification_id)
+    assert (rejected.sent_at, rejected.gave_up_at) == (None, WORKER_NOW)
+    assert "notification_rejected" in [log["event"] for log in logs]
+
+
+async def test_a_refused_token_leaves_every_row_waiting(
+    context: WorkerContext,
+    sender: FakeSender,
+    family: dict[str, Any],
+    db_session: AsyncSession,
+) -> None:
+    first = await notify(db_session, family["anna"], family["food"], key="a")
+    second = await notify(db_session, family["anna"], family["food"], key="b")
+    sender.failures[ANNA_CHAT] = TelegramTokenRejectedError("Telegram answered HTTP 401")
+
+    with structlog.testing.capture_logs() as logs:
+        handled = await deliver_with(context, sender)
+
+    assert handled == 0
+    for notification_id in (first, second):
+        waiting = await row(db_session, notification_id)
+        assert (waiting.attempts, waiting.sent_at, waiting.gave_up_at) == (0, None, None)
+    assert [log["event"] for log in logs if log["log_level"] == "error"] == [
+        "telegram_token_rejected"
+    ]

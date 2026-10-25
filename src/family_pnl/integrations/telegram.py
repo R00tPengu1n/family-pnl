@@ -1,9 +1,15 @@
 """Sending messages through the Telegram Bot API.
 
 `POST /bot<token>/sendMessage` with a chat id and plain text (no parse mode, so names
-need no escaping). Failures are split in two: a chat that cannot receive messages (the
-user blocked the bot, the chat is gone) will not get better by retrying; anything else
-(network, 429, 5xx) may. Error messages never contain the request URL: it holds the token.
+need no escaping). Failures are told apart by what helps:
+
+- the chat cannot receive messages (403, or 400 "chat not found"): skip this member;
+- Telegram refuses the message itself (any other 400, e.g. too long): retrying the same
+  text cannot help;
+- the token is refused (401, 404): nothing can be sent until the owner fixes it;
+- anything else (network, 429, 5xx) may pass later.
+
+Error messages never contain the request URL: it holds the token.
 """
 
 from typing import Protocol
@@ -24,6 +30,18 @@ class TelegramChatUnavailableError(Exception):
     """This chat does not accept messages from the bot; retrying will not help."""
 
 
+class TelegramMessageRejectedError(Exception):
+    """Telegram refuses this message (too long, malformed); the same text never goes through."""
+
+
+class TelegramTokenRejectedError(Exception):
+    """The bot token is wrong or revoked: no message goes through until it is replaced."""
+
+
+# 400 descriptions that are about the chat, not the message.
+_CHAT_GONE = ("chat not found", "user is deactivated", "peer_id_invalid")
+
+
 class TelegramSender(Protocol):
     async def send(self, chat_id: int, text: str) -> None: ...
 
@@ -41,10 +59,28 @@ class BotApiSender:
             )
         except httpx.HTTPError as exc:
             raise TelegramSendError(f"Telegram request failed: {type(exc).__name__}") from None
-        if response.status_code in (httpx.codes.BAD_REQUEST, httpx.codes.FORBIDDEN):
-            raise TelegramChatUnavailableError(f"Telegram answered HTTP {response.status_code}")
-        if response.status_code != httpx.codes.OK:
-            raise TelegramSendError(f"Telegram answered HTTP {response.status_code}")
+        status = response.status_code
+        if status == httpx.codes.OK:
+            return
+        reason = f"Telegram answered HTTP {status}"
+        if status in (httpx.codes.UNAUTHORIZED, httpx.codes.NOT_FOUND):
+            raise TelegramTokenRejectedError(reason)
+        if status == httpx.codes.FORBIDDEN:
+            raise TelegramChatUnavailableError(reason)
+        if status == httpx.codes.BAD_REQUEST:
+            description = _description(response)
+            if any(gone in description.lower() for gone in _CHAT_GONE):
+                raise TelegramChatUnavailableError(f"{reason}: {description}")
+            raise TelegramMessageRejectedError(f"{reason}: {description}")
+        raise TelegramSendError(reason)
+
+
+def _description(response: httpx.Response) -> str:
+    """Telegram's `description`, which names the problem; empty if the body has none."""
+    try:
+        return str(response.json().get("description", ""))
+    except (ValueError, AttributeError):
+        return ""
 
 
 def create_http_client(base_url: str = BASE_URL) -> httpx.AsyncClient:

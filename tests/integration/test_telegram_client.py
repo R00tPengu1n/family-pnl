@@ -9,7 +9,9 @@ from pydantic import SecretStr
 from family_pnl.integrations.telegram import (
     BotApiSender,
     TelegramChatUnavailableError,
+    TelegramMessageRejectedError,
     TelegramSendError,
+    TelegramTokenRejectedError,
     create_http_client,
 )
 
@@ -37,15 +39,84 @@ async def test_a_message_is_posted_as_plain_text() -> None:
     assert json.loads(request.content) == {"chat_id": 42, "text": "Бюджет"}
 
 
-@pytest.mark.parametrize("status", [400, 403])
-async def test_a_chat_that_refuses_the_bot_is_not_retried(status: int) -> None:
-    client, http = sender(httpx.MockTransport(lambda _: httpx.Response(status)))
+def answering(status: int, description: str | None = None) -> httpx.MockTransport:
+    body = {"ok": False, "description": description} if description is not None else None
+    return httpx.MockTransport(lambda _: httpx.Response(status, json=body))
 
-    with pytest.raises(TelegramChatUnavailableError) as raised:
+
+async def failure_of(transport: httpx.MockTransport) -> Exception:
+    client, http = sender(transport)
+    try:
         await client.send(42, "x")
-    await http.aclose()
+    except Exception as exc:
+        return exc
+    finally:
+        await http.aclose()
+    raise AssertionError("the send did not fail")
 
-    assert str(raised.value) == f"Telegram answered HTTP {status}"
+
+@pytest.mark.parametrize(
+    ("status", "description", "text"),
+    [
+        (403, "Forbidden: bot was blocked by the user", "Telegram answered HTTP 403"),
+        (
+            400,
+            "Bad Request: chat not found",
+            "Telegram answered HTTP 400: Bad Request: chat not found",
+        ),
+        (
+            400,
+            "Bad Request: user is deactivated",
+            "Telegram answered HTTP 400: Bad Request: user is deactivated",
+        ),
+        (
+            400,
+            "Bad Request: PEER_ID_INVALID",
+            "Telegram answered HTTP 400: Bad Request: PEER_ID_INVALID",
+        ),
+    ],
+)
+async def test_a_chat_that_cannot_receive_is_not_retried(
+    status: int, description: str, text: str
+) -> None:
+    error = await failure_of(answering(status, description))
+
+    assert isinstance(error, TelegramChatUnavailableError)
+    assert str(error) == text
+
+
+@pytest.mark.parametrize(
+    ("description", "text"),
+    [
+        (
+            "Bad Request: message is too long",
+            "Telegram answered HTTP 400: Bad Request: message is too long",
+        ),
+        (None, "Telegram answered HTTP 400: "),
+    ],
+    ids=["too-long", "no-description"],
+)
+async def test_a_message_telegram_refuses_is_not_a_chat_problem(
+    description: str | None, text: str
+) -> None:
+    error = await failure_of(answering(400, description))
+
+    assert isinstance(error, TelegramMessageRejectedError)
+    assert str(error) == text
+
+
+async def test_a_400_without_a_json_body_is_a_refused_message() -> None:
+    error = await failure_of(httpx.MockTransport(lambda _: httpx.Response(400, text="oops")))
+
+    assert isinstance(error, TelegramMessageRejectedError)
+
+
+@pytest.mark.parametrize("status", [401, 404])
+async def test_a_refused_token_stops_everything(status: int) -> None:
+    error = await failure_of(answering(status, "Unauthorized"))
+
+    assert isinstance(error, TelegramTokenRejectedError)
+    assert str(error) == f"Telegram answered HTTP {status}"
 
 
 @pytest.mark.parametrize("status", [429, 500, 502])
