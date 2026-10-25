@@ -35,6 +35,9 @@ can be slow or down, and the worker can restart at any time.
 - Network errors, 429 and 5xx postpone the row: `next_attempt_at` grows 1, 2, 4… minutes
   up to six hours; after 10 failures `gave_up_at` is set and an error is logged.
 - Without `FAMILY_PNL_TELEGRAM_BOT_TOKEN` the job logs a warning and rows keep waiting.
+- `delivered_to` lists the members a row reached: a retry after a partial failure sends
+  only to the others. Any unexpected error postpones the row like a failed send, so a broken
+  row cannot hold up the queue (updated 2026-10-25).
 
 ## Consequences
 

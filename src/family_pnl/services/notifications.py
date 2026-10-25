@@ -4,8 +4,10 @@ One notification at a time, each in its own transaction: the row is locked, sent
 recipient, marked sent and committed, so a restart never sends a delivered row again.
 Members without a linked Telegram, and chats that refuse the bot, are skipped with a log
 entry: retrying would not reach them and would repeat the message for everyone else. A
-failure that may pass (network, rate limit, Telegram down) postpones the whole
-notification with a growing delay, until it is given up.
+failure that may pass (network, rate limit, Telegram down) postpones the notification
+with a growing delay, until it is given up; the members it already reached are
+remembered and not sent it again. Any other error postpones it the same way, so one
+broken row never blocks the rows behind it.
 """
 
 import uuid
@@ -52,26 +54,43 @@ class NotificationDelivery:
         notification = await self._notifications.lock_next_due(now)
         if notification is None:
             return False
-        log = logger.bind(notification_id=str(notification.id), kind=notification.kind)
+        notification_id = notification.id
+        log = logger.bind(notification_id=str(notification_id), kind=notification.kind)
+        try:
+            await self._deliver(notification, now, log)
+        except Exception as exc:
+            # A row that cannot be handled (a broken payload, say) must not stay first in
+            # the queue forever: it is retried later like a failed send, then given up.
+            log.exception("notification_failed")
+            await self._session.rollback()
+            self._postpone(
+                await self._notifications.lock(notification_id), now, type(exc).__name__, log
+            )
+        await self._session.commit()
+        return True
+
+    async def _deliver(
+        self, notification: Notification, now: datetime, log: structlog.BoundLogger
+    ) -> None:
         text = await self._text(notification)
         if text is None:
             log.error("notification_kind_unknown")
             notification.gave_up_at = now
-            await self._session.commit()
-            return True
+            return
         try:
             for user in await self._recipients(notification):
-                await self._send(user, text, log)
+                if str(user.id) not in notification.delivered_to:
+                    await self._send(user, text, log)
+                    notification.delivered_to = [*notification.delivered_to, str(user.id)]
         except TelegramSendError as exc:
             self._postpone(notification, now, str(exc), log)
-        else:
-            notification.attempts += 1
-            notification.sent_at = now
-            log.info("notification_sent")
-        await self._session.commit()
-        return True
+            return
+        notification.attempts += 1
+        notification.sent_at = now
+        log.info("notification_sent")
 
     async def _send(self, user: User, text: str, log: structlog.BoundLogger) -> None:
+        """Send to one member; one who cannot be reached counts as handled."""
         if user.telegram_id is None:
             log.info("notification_recipient_not_linked", user_id=str(user.id))
             return
