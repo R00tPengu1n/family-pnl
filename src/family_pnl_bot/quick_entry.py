@@ -8,6 +8,7 @@ undone with a button. Nothing here imports aiogram: replies are text plus button
 """
 
 import secrets
+import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -85,7 +86,10 @@ class QuickEntry:
 
     async def undo(self, telegram_id: int, data: str) -> Reply:
         """The undo button: `undo:<operation id>`."""
-        operation_id = data.split(":", 1)[1]
+        try:
+            operation_id = uuid.UUID(data.partition(":")[2])
+        except ValueError:
+            return Reply(messages.ENTRY_EXPIRED)  # not a button the bot sent
         try:
             await self._api.request(telegram_id, "DELETE", f"/operations/{operation_id}")
         except ApiError as error:

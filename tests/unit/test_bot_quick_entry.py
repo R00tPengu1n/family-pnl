@@ -57,7 +57,7 @@ class FakeApi:
             return self.accounts
         if method == "POST":
             self.created.append(json)
-            return {"id": f"op-{len(self.created)}"}
+            return {"id": f"00000000-0000-0000-0000-{len(self.created):012d}"}
         self.deleted.append(path)
         return None
 
@@ -96,7 +96,7 @@ async def test_an_exact_category_and_the_only_account_record_in_one_message(
     ]
     assert reply == Reply(
         "Расход 12.50 BYN записан: «Продукты», счёт «Card».",
-        ((Button("Отменить", "undo:op-1"),),),
+        ((Button("Отменить", "undo:00000000-0000-0000-0000-000000000001"),),),
     )
 
 
@@ -282,7 +282,7 @@ async def test_undo_deletes_the_operation(entry: QuickEntry, api: FakeApi) -> No
 
     reply = await entry.undo(ME, data_of(recorded, "Отменить"))
 
-    assert api.deleted == ["/operations/op-1"]
+    assert api.deleted == ["/operations/00000000-0000-0000-0000-000000000001"]
     assert reply == Reply("Запись отменена.")
 
 
@@ -296,6 +296,14 @@ async def test_undo_deletes_the_operation(entry: QuickEntry, api: FakeApi) -> No
 async def test_undo_explains_why_it_could_not(
     entry: QuickEntry, api: FakeApi, error: ApiError, text: str
 ) -> None:
-    api.failures[("DELETE", "/operations/op-1")] = error
+    api.failures[("DELETE", "/operations/00000000-0000-0000-0000-000000000001")] = error
 
-    assert await entry.undo(ME, "undo:op-1") == Reply(text)
+    assert await entry.undo(ME, "undo:00000000-0000-0000-0000-000000000001") == Reply(text)
+
+
+@pytest.mark.parametrize("data", ["undo:../accounts", "undo:", "undo"])
+async def test_an_undo_button_the_bot_did_not_send_is_refused(
+    entry: QuickEntry, api: FakeApi, data: str
+) -> None:
+    assert await entry.undo(ME, data) == Reply(messages.ENTRY_EXPIRED)
+    assert api.deleted == []
