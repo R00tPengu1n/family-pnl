@@ -238,3 +238,16 @@ async def test_a_rate_seven_days_back_is_still_found(
 
     assert summary(result)[Currency.USD] == (Decimal("2.9950"), TUESDAY)
     assert len(source.calls) == 8
+
+
+async def test_fetching_rates_leaves_the_callers_transaction_to_the_caller(
+    service: RateService, db_session: AsyncSession
+) -> None:
+    # An expense looks up rates for its budget check: committing there would commit the
+    # expense before its notification is written (ADR-0009).
+    await service.rates_on(TUESDAY)
+    assert await stored_rows(db_session) == 2
+
+    await db_session.rollback()
+
+    assert await stored_rows(db_session) == 0
