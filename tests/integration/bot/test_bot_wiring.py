@@ -107,7 +107,11 @@ async def test_commands_reach_their_handlers_with_their_dependencies(
 
     assert telegram.sent == [messages.created("Family"), messages.LINK_USAGE]
     assert (await api.me(ANNA)).display_name == "Анна"
-    assert [router.name for router in telegram.dispatcher.sub_routers] == ["start", "quick_entry"]
+    assert [router.name for router in telegram.dispatcher.sub_routers] == [
+        "start",
+        "reports",
+        "quick_entry",
+    ]
 
 
 async def test_the_command_argument_reaches_the_reply(telegram: Telegram) -> None:
@@ -120,6 +124,8 @@ async def test_messages_without_a_sender_get_no_answer(telegram: Telegram) -> No
     await telegram.feed("/start", None)
     await telegram.feed("/link CODE", None)
     await telegram.feed("кофе 5", None)
+    for command in ("/balance", "/report", "/currency"):
+        await telegram.feed(command, None)
 
     assert telegram.sent == []
 
@@ -212,3 +218,26 @@ async def test_a_button_on_a_message_out_of_reach_still_acts(
 
     assert len(telegram.sent) == 2  # nothing to edit, the press is only acknowledged
     assert (await api.request(ANNA, "GET", "/operations"))["items"] == []
+
+
+async def test_balance_report_and_currency_commands_answer(
+    telegram: Telegram, api: ApiClient
+) -> None:
+    await telegram.feed("/start", ANNA)
+    await card_for(api)
+
+    await telegram.feed("/balance", ANNA)
+    await telegram.feed("/currency", ANNA)
+    await telegram.press("cur:USD")
+    await telegram.feed("/report", ANNA)
+    [[back]] = telegram.buttons
+    await telegram.press(back)
+    await telegram.press(back, False)
+
+    balance, currency, changed, report, previous = telegram.sent[1:]
+    assert balance.splitlines() == ["Card: 0.00 RUB", "Итого: 0.00 RUB"]
+    assert currency == "Суммы показываются в RUB. Выберите другую валюту:"
+    assert changed == "Готово: отчёты и балансы теперь в USD."
+    assert report.splitlines()[0].endswith(", USD")
+    assert previous.splitlines()[0].endswith(", USD")
+    assert previous.splitlines()[0] != report.splitlines()[0]

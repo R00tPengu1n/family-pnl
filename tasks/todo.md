@@ -636,11 +636,11 @@ confirm with an "undo" button.
 `/currency` to switch the display currency.
 
 **Acceptance criteria:**
-- [ ] Output in the member's display currency, amounts formatted with 2 decimals
-- [ ] Switching currency updates `/me/settings` and the next report
+- [x] Output in the member's display currency, amounts formatted with 2 decimals
+- [x] Switching currency updates `/me/settings` and the next report
 
 **Verification:**
-- [ ] `uv run pytest tests/integration/bot/test_reports_handlers.py`
+- [x] `uv run pytest tests/unit/test_bot_reports.py tests/integration/bot/test_bot_reports.py`
 
 **Dependencies:** Tasks 21, 27
 **Files likely touched:** `handlers/reports.py`, `formatting.py`, `keyboards.py`, tests
