@@ -1,10 +1,16 @@
 """Ledger vocabulary and rules: accounts, categories and operations."""
 
 import uuid
+from datetime import date
 from enum import StrEnum
 
 from family_pnl.core.errors import PermissionDeniedError, ValidationFailedError
 from family_pnl.domain.identity import Role
+
+# The dates the service accepts. Far past and future dates are typing mistakes, and at the
+# edges of the calendar date arithmetic (a month back, a day back) would overflow.
+EARLIEST_DATE = date(2000, 1, 1)
+LATEST_DATE = date(2099, 12, 31)
 
 
 class AccountType(StrEnum):

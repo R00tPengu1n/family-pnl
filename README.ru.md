@@ -96,7 +96,7 @@ uv run python -m family_pnl_bot
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
 uv run lint-imports
-uv run pytest -n 4 --dist loadgroup --cov
+uv run pytest -n 6 --dist loadgroup --cov
 ```
 
 На Windows `.\scripts\check.ps1 -Stage task` запускает всё вместе с порогом покрытия и

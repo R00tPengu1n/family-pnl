@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -98,6 +98,13 @@ class Settings(BaseSettings):
         if value is not None and len(value.get_secret_value()) < 32:
             raise ValueError("secrets must have at least 32 characters")
         return value
+
+    @model_validator(mode="after")
+    def _window_in_order(self) -> "Settings":
+        # Checked at start: otherwise every budget request would fail later.
+        if self.budget_window_start_day > self.budget_window_end_day:
+            raise ValueError("the budget window must not end before it starts")
+        return self
 
     @field_validator("telegram_bot_token", mode="before")
     @classmethod

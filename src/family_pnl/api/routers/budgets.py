@@ -19,7 +19,12 @@ router = APIRouter(
 )
 
 MonthPath = Annotated[
-    str, Path(pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="YYYY-MM", examples=["2026-11"])
+    str,
+    Path(
+        pattern=r"^20\d{2}-(0[1-9]|1[0-2])$",
+        description="YYYY-MM, 2000-01 to 2099-12",
+        examples=["2026-11"],
+    ),
 ]
 
 
