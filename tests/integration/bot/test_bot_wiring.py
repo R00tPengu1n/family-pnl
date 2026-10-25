@@ -125,7 +125,15 @@ async def test_messages_without_a_sender_get_no_answer(telegram: Telegram) -> No
     await telegram.feed("/start", None)
     await telegram.feed("/link CODE", None)
     await telegram.feed("кофе 5", None)
-    for command in ("/balance", "/report", "/currency", "/budget", "/limit x 1"):
+    for command in (
+        "/balance",
+        "/report",
+        "/currency",
+        "/input",
+        "/account Карта BYN",
+        "/budget",
+        "/limit x 1",
+    ):
         await telegram.feed(command, None)
 
     assert telegram.sent == []
@@ -257,3 +265,21 @@ async def test_budget_limit_and_approve_reach_their_handlers(telegram: Telegram)
     assert telegram.sent[2].startswith("Бюджет на ")
     assert telegram.sent[3].endswith(" утверждён.")
     assert len(telegram.sent) == 4  # the second press had no message to edit
+
+
+async def test_a_telegram_only_member_opens_an_account_and_records(
+    telegram: Telegram, api: ApiClient
+) -> None:
+    await telegram.feed("/start", ANNA)
+
+    await telegram.feed("/account Карта RUB", ANNA)
+    await telegram.feed("/input", ANNA)
+    await telegram.press("inp:RUB")
+    await telegram.feed("продукты 5", ANNA)
+
+    assert telegram.sent[1:4] == [
+        "Счёт «Карта» в RUB создан.",
+        "Сумма без валюты записывается в RUB. Выберите другую валюту:",
+        "Готово: сумма без валюты теперь в RUB.",
+    ]
+    assert telegram.sent[4] == "Расход 5.00 RUB записан: «Продукты», счёт «Карта»."

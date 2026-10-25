@@ -18,6 +18,7 @@ from family_pnl_bot.quick_entry import Button, Reply
 
 REPORT_PREFIX = "rep"
 CURRENCY_PREFIX = "cur"
+INPUT_PREFIX = "inp"
 CURRENCIES = ("RUB", "BYN", "USD")
 
 
@@ -64,26 +65,34 @@ class Reports:
             buttons.append(Button(f"{month_name(following)} →", _report_data(following)))
         return Reply(_report_text(month, body), (tuple(buttons),))
 
-    async def currency(self, telegram_id: int) -> Reply:
+    async def currency(self, telegram_id: int, prefix: str = CURRENCY_PREFIX) -> Reply:
+        """/currency (display currency) or /input (default input currency) with buttons."""
+        setting, ask, _ = _CURRENCY_SETTINGS[prefix]
         try:
             settings = await self._api.request(telegram_id, "GET", "/me/settings")
         except ApiError as error:
             return Reply(messages.error_text(error))
-        row = tuple(Button(code, f"{CURRENCY_PREFIX}:{code}") for code in CURRENCIES)
-        return Reply(messages.display_currency(settings["display_currency"]), (row,))
+        row = tuple(Button(code, f"{prefix}:{code}") for code in CURRENCIES)
+        return Reply(ask(settings[setting]), (row,))
 
     async def set_currency(self, telegram_id: int, data: str) -> Reply:
-        """A currency button: `cur:USD`."""
-        code = data.split(":", 1)[1]
-        if code not in CURRENCIES:
+        """A currency button: `cur:USD` (display) or `inp:BYN` (input)."""
+        prefix, _, code = data.partition(":")
+        if prefix not in _CURRENCY_SETTINGS or code not in CURRENCIES:
             return Reply(messages.ENTRY_EXPIRED)  # not a button the bot sent
+        setting, _, done = _CURRENCY_SETTINGS[prefix]
         try:
-            await self._api.request(
-                telegram_id, "PATCH", "/me/settings", json={"display_currency": code}
-            )
+            await self._api.request(telegram_id, "PATCH", "/me/settings", json={setting: code})
         except ApiError as error:
             return Reply(messages.error_text(error))
-        return Reply(messages.currency_changed(code))
+        return Reply(done(code))
+
+
+# Button prefix -> the member setting, the question and the confirmation.
+_CURRENCY_SETTINGS: dict[str, tuple[str, Callable[[str], str], Callable[[str], str]]] = {
+    CURRENCY_PREFIX: ("display_currency", messages.display_currency, messages.currency_changed),
+    INPUT_PREFIX: ("input_currency", messages.input_currency, messages.input_currency_changed),
+}
 
 
 def _report_text(month: date, body: dict[str, Any]) -> str:
