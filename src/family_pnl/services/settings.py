@@ -1,13 +1,23 @@
 """Household settings (owner only) and per-member currency preferences."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from enum import Enum
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from family_pnl.domain.currency import Currency
 from family_pnl.domain.permissions import require_owner
 from family_pnl.models import Household, User
+from family_pnl.repositories.identity import HouseholdRepository, UserRepository
 from family_pnl.services.auth import CurrentUser
+
+
+class _Unset(Enum):
+    UNSET = "unset"
+
+
+# A field left out of a change: unlike None, which returns to the household default.
+UNSET = _Unset.UNSET
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,17 +29,20 @@ class HouseholdChanges:
 
 @dataclass(frozen=True, slots=True)
 class MemberChanges:
-    """Only the fields present are changed; None returns to the household default."""
+    """Only the fields given are changed; None returns to the household default."""
 
-    fields: dict[str, Currency | None] = field(default_factory=dict)
+    display_currency: Currency | _Unset | None = UNSET
+    input_currency: Currency | _Unset | None = UNSET
 
 
 class SettingsService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self._households = HouseholdRepository(session)
+        self._users = UserRepository(session)
 
     async def household(self, user: CurrentUser) -> Household:
-        return await self._session.get_one(Household, user.household_id)
+        return await self._households.get(user.household_id)
 
     async def update_household(self, user: CurrentUser, changes: HouseholdChanges) -> Household:
         require_owner(user.role, "change household settings")
@@ -44,9 +57,10 @@ class SettingsService:
         return household
 
     async def update_member(self, user: CurrentUser, changes: MemberChanges) -> User:
-        member = await self._session.get_one(User, user.id)
-        for name in ("display_currency", "input_currency"):
-            if name in changes.fields:
-                setattr(member, name, changes.fields[name])
+        member = await self._users.lock(user.id)
+        if changes.display_currency is not UNSET:
+            member.display_currency = changes.display_currency
+        if changes.input_currency is not UNSET:
+            member.input_currency = changes.input_currency
         await self._session.commit()
         return member

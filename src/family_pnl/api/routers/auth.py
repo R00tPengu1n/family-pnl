@@ -116,6 +116,7 @@ async def update_my_settings(
     settings: SettingsServiceDep,
     auth: AuthServiceDep,
 ) -> MemberSettingsOut:
+    # Only the fields sent change; an explicit null returns to the household default.
     sent = {name: getattr(body, name) for name in body.model_fields_set}
-    await settings.update_member(user, MemberChanges(fields=sent))
+    await settings.update_member(user, MemberChanges(**sent))
     return MemberSettingsOut.of(await auth.current_user(user.id))
