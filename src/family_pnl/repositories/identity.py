@@ -47,6 +47,10 @@ class HouseholdRepository:
     def add(self, household: Household) -> None:
         self._session.add(household)
 
+    async def get(self, household_id: uuid.UUID) -> Household:
+        """The household of a signed-in user, which always exists."""
+        return await self._session.get_one(Household, household_id)
+
     def add_member(self, membership: Membership) -> None:
         self._session.add(membership)
 

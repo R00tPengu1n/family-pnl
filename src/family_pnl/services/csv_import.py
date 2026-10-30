@@ -50,7 +50,6 @@ from family_pnl.repositories.ledger import (
 )
 from family_pnl.services.auth import CurrentUser
 from family_pnl.services.budget_execution import BudgetExecutionService
-from family_pnl.services.fx import RateService
 
 MAX_BYTES = 1024 * 1024
 MAX_ROWS = 5000
@@ -323,13 +322,15 @@ def _iso_date(value: str) -> date | None:
 
 
 class CsvImportService:
-    def __init__(self, session: AsyncSession, clock: Clock, rates: RateService) -> None:
+    def __init__(
+        self, session: AsyncSession, clock: Clock, budgets: BudgetExecutionService
+    ) -> None:
         self._session = session
         self._clock = clock
         self._accounts = AccountRepository(session)
         self._categories = CategoryRepository(session)
         self._operations = OperationRepository(session)
-        self._budgets = BudgetExecutionService(session, rates, clock)
+        self._budgets = budgets
 
     async def import_csv(
         self, user: CurrentUser, content: bytes, *, dry_run: bool, strict: bool

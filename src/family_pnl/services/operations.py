@@ -74,14 +74,20 @@ class OperationChanges:
 
 
 class OperationService:
-    def __init__(self, session: AsyncSession, clock: Clock, rates: RateService) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        clock: Clock,
+        rates: RateService,
+        budgets: BudgetExecutionService,
+    ) -> None:
         self._session = session
         self._clock = clock
         self._rates = rates
         self._operations = OperationRepository(session)
         self._accounts = AccountRepository(session)
         self._categories = CategoryRepository(session)
-        self._budgets = BudgetExecutionService(session, rates, clock)
+        self._budgets = budgets
 
     async def create(self, user: CurrentUser, new: NewOperation) -> Operation:
         source = await self._usable_account(user, new.account_id)
