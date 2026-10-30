@@ -715,11 +715,11 @@ to ADRs. Russian version mirrors the English one.
 review, then `/engineering:code-review` on the whole codebase; fix findings in small PRs.
 
 **Acceptance criteria:**
-- [ ] Every finding is fixed or answered with a reason
-- [ ] CI green after fixes
+- [x] Every finding is fixed or answered with a reason (PRs #39–#47, #49, #50; repository settings, license and the bot GIF are left to the owner)
+- [x] CI green after fixes
 
 **Verification:**
-- [ ] Review reports saved to `.reports/` (not committed)
+- [x] Review reports saved to `.reports/` (not committed)
 
 **Dependencies:** Task 33
 **Estimated scope:** M (several small PRs)
@@ -770,7 +770,7 @@ rotation (e.g. 7 daily + 4 weekly), documented and tested restore.
 
 **Acceptance criteria:**
 - [ ] Backups appear daily and old ones are rotated
-- [ ] Restore into a scratch database succeeds following `docs/deploy.md`
+- [x] Restore into a scratch database succeeds following `docs/deploy.md` (local stack, 2026-10-25; on the server after deployment)
 
 **Verification:**
 - [ ] Manual: restore the latest backup into a test database

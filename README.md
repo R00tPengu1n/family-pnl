@@ -101,6 +101,15 @@ localhost; set `API_BIND=0.0.0.0` in `.env` to expose it (behind a reverse proxy
 HTTPS). The bot restarts until the bot token is set; notifications wait in the database
 until then.
 
+## Deploy to a server
+
+One VPS (KVM, Ubuntu 24.04, 2 vCPU, 2–4 GB RAM) runs the same Compose stack. [docs/deploy.md](docs/deploy.md)
+has every step: key-only SSH and a firewall with only SSH open, Docker, `.env` on the
+server, restart after a reboot, optional HTTPS behind Caddy, daily PostgreSQL backups
+with rotation (`scripts/backup.sh`) and restore (`scripts/restore.sh`), and continuous
+deployment: every green `main` is built, pushed to GHCR and rolled out over SSH; a
+failed migration stops the rollout and keeps the previous version running.
+
 ## Develop
 
 Requirements: [uv](https://docs.astral.sh/uv/) and Docker (for PostgreSQL and Redis).
@@ -208,7 +217,8 @@ category, member, metric, amount, currency`), UTF-8 with a BOM for Excel.
 - Currencies: BYN, RUB and USD, at NBRB rates.
 - Bot questions waiting for a button press and `/link` attempt counters live in the bot's
   memory and are lost when it restarts.
-- Deployment to a server, continuous deployment and backups are the next phase.
+- Deployment is described and scripted ([docs/deploy.md](docs/deploy.md)) but the
+  service is not running on a public server yet.
 
 ## License
 
