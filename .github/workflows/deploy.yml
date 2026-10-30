@@ -1,0 +1,77 @@
+# Continuous deployment: after CI passes on main, build the image, push it to GHCR and roll
+# it out on the server (docs/deploy.md, section 7). A failed migration fails the job: the
+# API and the worker wait for `migrate` to succeed and keep the previous containers.
+#
+# Repository secrets (added by the owner):
+#   DEPLOY_HOST         server address
+#   DEPLOY_USER         SSH user on the server (deploy)
+#   DEPLOY_SSH_KEY      private key whose public half is in that user's authorized_keys
+#   DEPLOY_KNOWN_HOSTS  the server's host key line (ssh-keyscan), so a forged host is refused
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build, push and roll out
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      IMAGE: ghcr.io/r00tpengu1n/family-pnl
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Build and push the image
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker build -t "$IMAGE:$SHA" -t "$IMAGE:main" .
+          docker push "$IMAGE:$SHA"
+          docker push "$IMAGE:main"
+
+      - name: Prepare SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Roll out on the server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          remote() { ssh -i ~/.ssh/deploy -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "$@"; }
+          # The token lives for this run only; it goes over stdin, never into a command line.
+          echo "$GITHUB_TOKEN" | remote "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          remote "SHA=$SHA IMAGE=$IMAGE sh -s" <<'REMOTE'
+          set -eu
+          cd /opt/family-pnl
+          git fetch --quiet origin
+          git checkout --quiet --detach "$SHA"
+          export FAMILY_PNL_IMAGE="$IMAGE:$SHA"
+          docker compose pull --quiet migrate api worker bot
+          docker logout ghcr.io
+          docker compose up -d --no-build
+          curl -fsS --retry 10 --retry-delay 3 --retry-all-errors http://127.0.0.1:8000/health
+          REMOTE

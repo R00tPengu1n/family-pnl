@@ -115,15 +115,38 @@ docker compose up -d
 Checked on 2026-10-25 against the local Compose stack: a dump of 3 operations restored with
 the same schema revision and 3 operations; rotation kept the 7 newest daily dumps.
 
-## 7. Updating
+## 7. Updating: continuous deployment
 
-Until continuous deployment exists (task 36):
+`.github/workflows/deploy.yml` runs after CI passes on a push to `main`: it builds the
+image, pushes it to GHCR as `ghcr.io/r00tpengu1n/family-pnl:<commit>`, then over SSH checks
+out that commit on the server, pulls the image and runs `docker compose up -d` with
+`FAMILY_PNL_IMAGE` set to it, and finally waits for `/health`.
+
+A failed migration fails the deploy: `api` and `worker` wait for `migrate` to succeed, so
+they keep running the previous version; `docker compose logs migrate` shows why.
+
+One-time setup:
+
+1. A separate key for GitHub Actions; its public half goes on the server:
+
+   ```bash
+   echo "ssh-ed25519 AAAA... family-pnl-github-actions" >> /home/deploy/.ssh/authorized_keys
+   ```
+
+2. Repository secrets, set by the owner (values never go through the chat), from the
+   machine that holds the private key:
+
+   ```bash
+   gh secret set DEPLOY_HOST --body "<server address>"
+   gh secret set DEPLOY_USER --body deploy
+   gh secret set DEPLOY_SSH_KEY < ~/.ssh/family_pnl_ci
+   ssh-keyscan -t ed25519 <server address> | gh secret set DEPLOY_KNOWN_HOSTS
+   ```
+
+By hand, without the workflow:
 
 ```bash
 cd /opt/family-pnl
 git pull
 docker compose up --build -d            # migrate runs before api and worker start
 ```
-
-A failed migration stops `migrate`, and the API and the worker do not start with an
-unmigrated schema; `docker compose logs migrate` shows why.
