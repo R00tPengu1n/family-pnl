@@ -25,6 +25,20 @@ REPORT = {
     ],
     "plan_vs_actual": [{"category": "Продукты", "planned": "400.00", "actual": "329.50"}],
 }
+EXECUTION = {
+    "month": "2026-10",
+    "currency": "BYN",
+    "categories": [
+        {
+            "category": "Кафе и рестораны",
+            "limit": "800.00",
+            "spent": "300.00",
+            "remaining": "500.00",
+        },
+        {"category": "Связь и интернет", "limit": "300.00", "spent": "0.00", "remaining": "300.00"},
+        {"category": "Продукты", "limit": "700.00", "spent": "720.00", "remaining": "-20.00"},
+    ],
+}
 EMPTY_REPORT = {
     "currency": "USD",
     "totals": {"income": "0.00", "expense": "0.00", "net": "0.00"},
@@ -40,6 +54,7 @@ class FakeApi:
             "/household/settings": {"timezone": "Europe/Minsk"},
             "/reports": REPORT,
             "/me/settings": {"display_currency": "BYN"},
+            "/budgets/2026-10/execution": EXECUTION,
             "/accounts/balances": {
                 "display_currency": "USD",
                 "total": "1200.00",
@@ -94,10 +109,33 @@ def test_money_and_months_read_naturally() -> None:
     assert month_name(date(2026, 12, 1)) == "Декабрь 2026"
 
 
-async def test_the_balance_lists_accounts_and_the_total(api: FakeApi) -> None:
+async def test_the_balance_lists_accounts_the_total_and_the_limits_left(api: FakeApi) -> None:
     reply = await reports(api).balance(ME)
 
-    assert reply == Reply("Card: 2 995.00 BYN\nDollars: 200.00 USD\nИтого: 1 200.00 USD")
+    assert ("GET", "/reports", {"from": "2026-10-01", "to": "2026-10-31"}) in api.calls
+    assert reply == Reply(
+        "\n".join(
+            [
+                "Card: 2 995.00 BYN",
+                "Dollars: 200.00 USD",
+                "Итого: 1 200.00 USD",
+                "",
+                "Октябрь 2026: расходы 379.50 BYN",
+                "Осталось по лимитам, BYN:",
+                "• Кафе и рестораны — 500.00 из 800.00",
+                "• Связь и интернет — 300.00 из 300.00",
+                "• Продукты — 0.00 из 700.00 (перерасход 20.00)",
+            ]
+        )
+    )
+
+
+async def test_the_balance_without_limits_says_where_to_set_them(api: FakeApi) -> None:
+    api.answers["/budgets/2026-10/execution"] = {"currency": "BYN", "categories": []}
+
+    reply = await reports(api).balance(ME)
+
+    assert reply.text.splitlines()[-1] == "Лимитов на этот месяц нет: их задают в «📅 Бюджет»."
 
 
 async def test_the_balance_without_accounts(api: FakeApi) -> None:

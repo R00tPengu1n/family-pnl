@@ -176,7 +176,9 @@ async def test_balance_report_and_currency_commands_answer(
     await telegram.press(back, False)
 
     balance, currency, changed, report, previous = telegram.sent[1:]
-    assert balance.splitlines() == ["Card: 0.00 RUB", "Итого: 0.00 RUB"]
+    assert balance.splitlines()[:3] == ["Card: 0.00 RUB", "Итого: 0.00 RUB", ""]
+    assert balance.splitlines()[3].endswith(": расходы 0.00 RUB")
+    assert balance.splitlines()[4] == messages.NO_LIMITS_THIS_MONTH
     assert currency == "Суммы показываются в RUB. Выберите другую валюту:"
     assert changed == "Готово: отчёты и балансы теперь в USD."
     assert report.splitlines()[0].endswith(", USD")

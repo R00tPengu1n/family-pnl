@@ -121,7 +121,9 @@ service, repository, API, tests.
 - Quick entry: `кофе 5.50`, `такси 300 rub`, `+зарплата 2500 byn` — amount,
   optional currency (defaults to the member's usual input currency), category
   matched by name or chosen with buttons.
-- Balance, monthly report, switching display currency.
+- Balance, monthly report, switching display currency. The balance also shows
+  this month's expenses and what is left of each budget limit (an overspend
+  shows how much over).
 - Budget draft: view, add/change limits in the window, approve (owner).
 - Receives reminders and limit alerts.
 - Talks only to the REST API, never to the database.
