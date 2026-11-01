@@ -27,6 +27,7 @@ HELP = (
     f"• Траты и доходы — одним сообщением: {ENTRY_EXAMPLES}. "
     "Плюс в начале — доход. Без валюты сумма записывается в валюту ввода.\n"
     f"• {menu.TOP_UP} — записать поступление: выберите счёт и напишите сумму.\n"
+    f"• {menu.TRANSFER} — перевести деньги со счёта на счёт, в том числе в другой валюте.\n"
     f"• {menu.BALANCE} — сколько денег на счетах и сколько осталось по лимитам.\n"
     f"• {menu.REPORT} — доходы и расходы за месяц.\n"
     f"• {menu.BUDGET} — лимиты на следующий месяц и траты в этом.\n"
@@ -110,6 +111,25 @@ def ask_top_up_amount(account: str) -> str:
         f"Сколько пришло на «{account}»? Напишите сумму, например 2500, "
         "или откуда и сколько: «зарплата 2500»."
     )
+
+
+ASK_TRANSFER_SOURCE = "С какого счёта перевести?"
+ASK_TRANSFER_TARGET = "На какой счёт?"
+TRANSFER_NEEDS_TWO = (
+    f"Для перевода нужно хотя бы два счёта. Откройте ещё один: «{menu.NEW_ACCOUNT}»."
+)
+TRANSFER_AMOUNT_INVALID = "Нужна сумма больше нуля, например 100 или 50.25."
+ANOTHER_MEMBER = "участник"
+
+
+def ask_transfer_amount(account: str, currency: str) -> str:
+    return f"Сколько перевести с «{account}»? Сумма в {currency}, например 100."
+
+
+def transferred(sent: str, received: str | None, source: str, target: str) -> str:
+    """`received` is given only when it differs: a transfer between currencies."""
+    amounts = f"{sent} → {received}" if received else sent
+    return f"Перевод {amounts}: «{source}» → «{target}»."
 
 
 NO_ACCOUNTS_YET = f"Счетов пока нет. Откройте первый: кнопка «{menu.NEW_ACCOUNT}»."

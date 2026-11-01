@@ -8,6 +8,7 @@ Rows = tuple[tuple[str, ...], ...]
 
 RECORD = "➕ Записать"
 TOP_UP = "💵 Пополнить"
+TRANSFER = "🔁 Перевод"
 BALANCE = "💰 Баланс"
 REPORT = "📊 Отчёт"
 BUDGET = "📅 Бюджет"
@@ -30,9 +31,10 @@ ACCOUNT_NAMES = ("Карта", "Наличные")
 
 MAIN: Rows = (
     (RECORD, TOP_UP),
-    (BALANCE, REPORT),
-    (BUDGET, NEW_ACCOUNT),
-    (SETTINGS, HELP),
+    (TRANSFER, BALANCE),
+    (REPORT, BUDGET),
+    (NEW_ACCOUNT, SETTINGS),
+    (HELP,),
 )
 SETTINGS_MENU: Rows = (
     (DISPLAY_CURRENCY, INPUT_CURRENCY),

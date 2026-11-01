@@ -12,6 +12,7 @@ from family_pnl_bot.handlers import budget, menu, quick_entry, reports, start
 from family_pnl_bot.quick_entry import QuickEntry
 from family_pnl_bot.reports import Reports
 from family_pnl_bot.throttle import AttemptLimiter
+from family_pnl_bot.transfers import Transfers
 
 # The "/" list in Telegram; everything else is on the menu buttons.
 COMMANDS = (
@@ -42,6 +43,7 @@ def build_dispatcher(
     dispatcher["quick_entry"] = QuickEntry(api)
     dispatcher["reports"] = Reports(api)
     dispatcher["budget"] = BudgetBot(api)
+    dispatcher["transfers"] = Transfers(api)
     return dispatcher
 
 
