@@ -1,5 +1,8 @@
 """/balance, /report and /currency: what the member sees, in their display currency.
 
+The balance also shows this month's expenses and what is left of each budget limit; the
+limits are in the budget currency, as the API reports them.
+
 The API converts everything to the member's display currency; the bot only formats it.
 The current month is the month of today in the household time zone. Nothing here
 imports aiogram: replies are text plus button data.
@@ -8,6 +11,7 @@ imports aiogram: replies are text plus button data.
 import calendar
 from collections.abc import Callable
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -32,29 +36,33 @@ class Reports:
         self._now = now
 
     async def balance(self, telegram_id: int) -> Reply:
+        """The accounts and the total, then this month's expenses and the limits left."""
         try:
             body = await self._api.request(telegram_id, "GET", "/accounts/balances")
+            if not body["accounts"]:
+                return Reply(messages.NO_ACCOUNTS_YET)
+            month = await self._this_month(telegram_id)
+            spent = await self._api.request(
+                telegram_id, "GET", "/reports", params=_month_params(month)
+            )
+            execution = await self._api.request(
+                telegram_id, "GET", f"/budgets/{month.strftime('%Y-%m')}/execution"
+            )
         except ApiError as error:
             return Reply(messages.error_text(error))
-        if not body["accounts"]:
-            return Reply(messages.NO_ACCOUNTS_YET)
         lines = [f"{a['name']}: {money(a['balance'], a['currency'])}" for a in body["accounts"]]
         lines.append(f"Итого: {money(body['total'], body['display_currency'])}")
+        expenses = money(spent["totals"]["expense"], spent["currency"])
+        lines += ["", f"{month_name(month)}: расходы {expenses}", *_limit_lines(execution)]
         return Reply("\n".join(lines))
 
     async def report(self, telegram_id: int, data: str | None = None) -> Reply:
         """This month's report, or the month of a button: `rep:YYYY-MM`."""
         try:
-            settings = await self._api.request(telegram_id, "GET", "/household/settings")
-            today = self._now().astimezone(ZoneInfo(settings["timezone"])).date()
-            current = today.replace(day=1)
+            current = await self._this_month(telegram_id)
             month = _month_of(data) or current
-            last = month.replace(day=calendar.monthrange(month.year, month.month)[1])
             body = await self._api.request(
-                telegram_id,
-                "GET",
-                "/reports",
-                params={"from": month.isoformat(), "to": last.isoformat()},
+                telegram_id, "GET", "/reports", params=_month_params(month)
             )
         except ApiError as error:
             return Reply(messages.error_text(error))
@@ -87,6 +95,11 @@ class Reports:
             return Reply(messages.error_text(error))
         return Reply(done(code))
 
+    async def _this_month(self, telegram_id: int) -> date:
+        """The first day of the current month in the household time zone."""
+        settings = await self._api.request(telegram_id, "GET", "/household/settings")
+        return self._now().astimezone(ZoneInfo(settings["timezone"])).date().replace(day=1)
+
 
 # Button prefix -> the member setting, the question and the confirmation.
 _CURRENCY_SETTINGS: dict[str, tuple[str, Callable[[str], str], Callable[[str], str]]] = {
@@ -117,6 +130,26 @@ def _report_text(month: date, body: dict[str, Any]) -> str:
     if not body["by_category"]:
         lines += ["", "Операций за этот месяц нет."]
     return "\n".join(lines)
+
+
+def _month_params(month: date) -> dict[str, str]:
+    last = month.replace(day=calendar.monthrange(month.year, month.month)[1])
+    return {"from": month.isoformat(), "to": last.isoformat()}
+
+
+def _limit_lines(execution: dict[str, Any]) -> list[str]:
+    """What is left of each limit this month; an overspend shows how much over."""
+    if not execution["categories"]:
+        return [messages.NO_LIMITS_THIS_MONTH]
+    lines = [f"Осталось по лимитам, {execution['currency']}:"]
+    for item in execution["categories"]:
+        remaining = Decimal(item["remaining"])
+        left = amount(max(remaining, Decimal(0)))
+        line = f"• {item['category']} — {left} из {amount(item['limit'])}"
+        if remaining < 0:
+            line += f" (перерасход {amount(-remaining)})"
+        lines.append(line)
+    return lines
 
 
 def _month_of(data: str | None) -> date | None:
