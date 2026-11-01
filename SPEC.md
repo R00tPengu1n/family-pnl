@@ -133,7 +133,9 @@ service, repository, API, tests.
 - Multi-step actions are dialogs, one question at a time, and the menu gives way
   to the answers (currencies, categories, "Отмена"): opening an account (name,
   currency, personal or shared for the owner), setting a limit (category,
-  amount), choosing a currency, linking an account.
+  amount), choosing a currency, linking an account, a top-up ("Пополнить":
+  the account, then the amount with an optional source; the income category is
+  matched or asked with buttons; the currency defaults to the account's).
 - The owner invites a member with a link to the bot (`t.me/<bot>?start=<invite
   code>`); the welcome after `/start` says no password is needed and lists the
   first steps. The email-and-password screen explains that the bot itself never
