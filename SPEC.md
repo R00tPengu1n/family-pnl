@@ -125,6 +125,19 @@ service, repository, API, tests.
 - Budget draft: view, add/change limits in the window, approve (owner).
 - Receives reminders and limit alerts.
 - Talks only to the REST API, never to the database.
+- Menu of Russian reply-keyboard buttons, shown whenever the bot waits for the
+  member: balance, report, budget, new account, settings, help, and a hint on
+  how to record an entry. Settings: display and input currency, invite to the
+  family, link an API account, email and password. Every action is reachable
+  from a button; the commands stay as shortcuts (ADR-0011).
+- Multi-step actions are dialogs, one question at a time, and the menu gives way
+  to the answers (currencies, categories, "Отмена"): opening an account (name,
+  currency, personal or shared for the owner), setting a limit (category,
+  amount), choosing a currency, linking an account.
+- The owner invites a member with a link to the bot (`t.me/<bot>?start=<invite
+  code>`); the welcome after `/start` says no password is needed and lists the
+  first steps. The email-and-password screen explains that the bot itself never
+  needs one, and the steps to set it in the API.
 
 #### deploy (after MVP)
 
