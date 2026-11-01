@@ -76,7 +76,8 @@ service, repository, API, tests.
   owner) or shared; type `card | cash | savings`; currency; balance computed
   from operations.
 - Categories: income and expense; a default set is created with each household;
-  members can add their own.
+  members can add their own. Lists show the defaults in a fixed order ("Другое"
+  last), then the household's own categories by name.
 - Operations: `income`, `expense`, `transfer` (between accounts, possibly with
   currency conversion). Fields: amount, currency, date, category, account,
   comment, author.
