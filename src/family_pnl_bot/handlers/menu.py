@@ -19,7 +19,7 @@ from family_pnl_bot.accounts import credentials_code, currency_code, open_accoun
 from family_pnl_bot.api_client import ApiClient, ApiError
 from family_pnl_bot.budget import LIMIT_DATA, BudgetBot, limit_amount
 from family_pnl_bot.keyboards import answer_markup, keyboard
-from family_pnl_bot.quick_entry import Reply
+from family_pnl_bot.quick_entry import Option, QuickEntry, Reply
 from family_pnl_bot.replies import invite_replies, link_reply
 from family_pnl_bot.reports import CURRENCY_PREFIX, INPUT_PREFIX, Reports
 from family_pnl_bot.throttle import AttemptLimiter
@@ -31,6 +31,8 @@ class Dialog(StatesGroup):
     account_name = State()
     account_currency = State()
     account_kind = State()
+    top_up_account = State()
+    top_up_amount = State()
     limit_category = State()
     limit_amount = State()
     currency = State()
@@ -153,6 +155,51 @@ async def _open_account(
     await _finish(message, state, reply)
 
 
+# --- Top-up: the account, then the amount (and where the money came from) --------------
+
+
+async def on_top_up(message: Message, state: FSMContext, quick_entry: QuickEntry) -> None:
+    await state.clear()
+    reply, accounts = await quick_entry.top_up_accounts(_sender(message))
+    if not accounts:
+        await _finish(message, state, reply)
+        return
+    labels = {
+        menu.account_label(a): {"id": a["id"], "name": a["name"], "currency": a["currency"]}
+        for a in accounts
+    }
+    await state.set_data({"accounts": labels})
+    await _ask(message, state, Dialog.top_up_account, reply.text, menu.choices(list(labels)))
+
+
+async def on_top_up_account(message: Message, state: FSMContext) -> None:
+    account = (await state.get_data())["accounts"].get(message.text)
+    if account is None:
+        await message.answer(messages.CHOOSE_ACCOUNT_BUTTON)
+        return
+    await state.update_data(account=account)
+    # The amount is typed, nothing to choose: the menu comes back, and its buttons end
+    # the dialog. The category, if asked, comes as buttons under the reply.
+    await state.set_state(Dialog.top_up_amount)
+    await message.answer(
+        messages.ask_top_up_amount(account["name"]), reply_markup=keyboard(menu.MAIN)
+    )
+
+
+async def on_top_up_amount(message: Message, state: FSMContext, quick_entry: QuickEntry) -> None:
+    account = (await state.get_data())["account"]
+    reply = await quick_entry.top_up(
+        _sender(message),
+        Option(account["id"], account["name"]),
+        account["currency"],
+        message.text or "",
+    )
+    if reply is None:
+        await message.answer(messages.TOP_UP_AMOUNT_INVALID)
+        return
+    await _finish(message, state, reply)
+
+
 # --- A limit: the button under the budget, then category and amount -------------------
 
 
@@ -266,6 +313,7 @@ def build_router() -> Router:
         menu.BACK: on_menu,
         menu.HELP: on_help,
         menu.RECORD: on_record,
+        menu.TOP_UP: on_top_up,
         menu.BALANCE: on_balance,
         menu.REPORT: on_report,
         menu.BUDGET: on_budget,
@@ -283,6 +331,8 @@ def build_router() -> Router:
         Dialog.account_name: on_account_name,
         Dialog.account_currency: on_account_currency,
         Dialog.account_kind: on_account_kind,
+        Dialog.top_up_account: on_top_up_account,
+        Dialog.top_up_amount: on_top_up_amount,
         Dialog.limit_category: on_limit_category,
         Dialog.limit_amount: on_limit_amount,
         Dialog.currency: on_currency,
