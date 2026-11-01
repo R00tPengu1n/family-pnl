@@ -178,3 +178,16 @@ async def test_invalid_categories_are_rejected(
 @pytest.mark.parametrize("method", ["GET", "POST"])
 async def test_categories_require_authentication(client: AsyncClient, method: str) -> None:
     assert (await client.request(method, "/categories")).status_code == 401
+
+
+async def test_defaults_come_in_their_order_and_own_categories_after_them(
+    client: AsyncClient, anna: Actor
+) -> None:
+    for name in ("Хобби", "Авто"):
+        assert (await create(client, anna, name)).status_code == 201
+
+    found = [c["name"] for c in await categories(client, anna, kind="expense")]
+
+    defaults = [name for kind, name in DEFAULT_CATEGORIES if kind.value == "expense"]
+    assert found == [*defaults, "Авто", "Хобби"]
+    assert defaults[-2:] == ["Дети", "Другое"]

@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     String,
     UniqueConstraint,
@@ -25,6 +26,9 @@ from family_pnl.domain.ledger import (
 )
 from family_pnl.models.base import Base
 from family_pnl.models.types import checked_enum, currency_column
+
+# Categories a member adds come after the default ones, by name.
+CUSTOM_CATEGORY_POSITION = 1000
 
 
 class Account(Base):
@@ -66,6 +70,10 @@ class Category(Base):
     # domain.ledger.category_key(name): uniqueness is decided by the same rule as in code.
     name_key: Mapped[str] = mapped_column(String(50))
     archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Lists are ordered by position, then name: defaults in DEFAULT_CATEGORIES order.
+    position: Mapped[int] = mapped_column(
+        Integer, default=CUSTOM_CATEGORY_POSITION, server_default=str(CUSTOM_CATEGORY_POSITION)
+    )
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
@@ -81,10 +89,11 @@ class Category(Base):
                 name=name,
                 name_key=category_key(name),
                 archived=False,
+                position=position,
                 created_by=None,
                 created_at=now,
             )
-            for kind, name in DEFAULT_CATEGORIES
+            for position, (kind, name) in enumerate(DEFAULT_CATEGORIES)
         ]
 
 
