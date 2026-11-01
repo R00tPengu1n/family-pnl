@@ -23,6 +23,7 @@ from family_pnl_bot.quick_entry import Option, QuickEntry, Reply
 from family_pnl_bot.replies import invite_replies, link_reply
 from family_pnl_bot.reports import CURRENCY_PREFIX, INPUT_PREFIX, Reports
 from family_pnl_bot.throttle import AttemptLimiter
+from family_pnl_bot.transfers import TransferAccount, Transfers
 
 MAX_ACCOUNT_NAME = 100  # the API's limit
 
@@ -33,6 +34,9 @@ class Dialog(StatesGroup):
     account_kind = State()
     top_up_account = State()
     top_up_amount = State()
+    transfer_source = State()
+    transfer_target = State()
+    transfer_amount = State()
     limit_category = State()
     limit_amount = State()
     currency = State()
@@ -200,6 +204,60 @@ async def on_top_up_amount(message: Message, state: FSMContext, quick_entry: Qui
     await _finish(message, state, reply)
 
 
+# --- Transfer: from one of the member's accounts to another family account ----------
+
+
+async def on_transfer(message: Message, state: FSMContext, transfers: Transfers) -> None:
+    await state.clear()
+    reply, accounts = await transfers.start(_sender(message))
+    if not accounts:
+        await _finish(message, state, reply)
+        return
+    await state.set_data({"accounts": {a.label: a for a in accounts}})
+    sources = [a.label for a in accounts if a.own]
+    await _ask(message, state, Dialog.transfer_source, reply.text, menu.choices(sources))
+
+
+async def on_transfer_source(message: Message, state: FSMContext) -> None:
+    accounts: dict[str, TransferAccount] = (await state.get_data())["accounts"]
+    source = accounts.get(message.text or "")
+    if source is None or not source.own:
+        await message.answer(messages.CHOOSE_ACCOUNT_BUTTON)
+        return
+    await state.update_data(source=source)
+    targets = [label for label in accounts if label != source.label]
+    await _ask(
+        message, state, Dialog.transfer_target, messages.ASK_TRANSFER_TARGET, menu.choices(targets)
+    )
+
+
+async def on_transfer_target(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    target = data["accounts"].get(message.text or "")
+    if target is None or target == data["source"]:
+        await message.answer(messages.CHOOSE_ACCOUNT_BUTTON)
+        return
+    await state.update_data(target=target)
+    # The amount is typed: the menu comes back, and the result has an undo button.
+    await state.set_state(Dialog.transfer_amount)
+    source: TransferAccount = data["source"]
+    await message.answer(
+        messages.ask_transfer_amount(source.name, source.currency),
+        reply_markup=keyboard(menu.MAIN),
+    )
+
+
+async def on_transfer_amount(message: Message, state: FSMContext, transfers: Transfers) -> None:
+    data = await state.get_data()
+    reply = await transfers.transfer(
+        _sender(message), data["source"], data["target"], message.text or ""
+    )
+    if reply is None:
+        await message.answer(messages.TRANSFER_AMOUNT_INVALID)
+        return
+    await _finish(message, state, reply)
+
+
 # --- A limit: the button under the budget, then category and amount -------------------
 
 
@@ -314,6 +372,7 @@ def build_router() -> Router:
         menu.HELP: on_help,
         menu.RECORD: on_record,
         menu.TOP_UP: on_top_up,
+        menu.TRANSFER: on_transfer,
         menu.BALANCE: on_balance,
         menu.REPORT: on_report,
         menu.BUDGET: on_budget,
@@ -333,6 +392,9 @@ def build_router() -> Router:
         Dialog.account_kind: on_account_kind,
         Dialog.top_up_account: on_top_up_account,
         Dialog.top_up_amount: on_top_up_amount,
+        Dialog.transfer_source: on_transfer_source,
+        Dialog.transfer_target: on_transfer_target,
+        Dialog.transfer_amount: on_transfer_amount,
         Dialog.limit_category: on_limit_category,
         Dialog.limit_amount: on_limit_amount,
         Dialog.currency: on_currency,

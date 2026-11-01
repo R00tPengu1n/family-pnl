@@ -330,3 +330,61 @@ async def test_top_up_without_an_account_says_to_open_one(telegram: Telegram) ->
     await telegram.feed(menu.TOP_UP, ANNA)
 
     assert (telegram.sent[-1], telegram.keyboard) == (messages.NO_ACCOUNTS, MAIN)
+
+
+async def open_account(api: ApiClient, who: int, name: str, shared: bool = False) -> None:
+    body = {"name": name, "type": "card", "currency": "RUB", "shared": shared}
+    await api.request(who, "POST", "/accounts", json=body)
+
+
+async def test_a_transfer_to_another_members_account_and_its_undo(
+    telegram: Telegram, api: ApiClient
+) -> None:
+    await family(telegram)
+    await open_account(api, ANNA, "Карта")
+    await open_account(api, ANNA, "Копилка", shared=True)
+    await open_account(api, IVAN, "Наличные")  # the fake Telegram names every user Анна
+    await telegram.feed(menu.TOP_UP, ANNA)
+    await telegram.feed("Карта · RUB", ANNA)
+    await telegram.feed("зарплата 500", ANNA)
+
+    await telegram.feed(menu.TRANSFER, ANNA)
+    assert telegram.sent[-1] == messages.ASK_TRANSFER_SOURCE
+    assert sorted(telegram.keyboard[0]) == ["Карта · RUB", "Копилка · RUB · общий"]
+    await telegram.feed("Наличные · RUB · Анна", ANNA)  # not hers to send from
+    assert telegram.sent[-1] == messages.CHOOSE_ACCOUNT_BUTTON
+    await telegram.feed("Карта · RUB", ANNA)
+    assert telegram.sent[-1] == messages.ASK_TRANSFER_TARGET
+    targets = sorted(label for row in telegram.keyboard for label in row)
+    assert targets == ["Копилка · RUB · общий", "Наличные · RUB · Анна", "Отмена"]
+    await telegram.feed("Карта · RUB", ANNA)  # the source itself
+    assert telegram.sent[-1] == messages.CHOOSE_ACCOUNT_BUTTON
+    await telegram.feed("Наличные · RUB · Анна", ANNA)
+    assert (telegram.sent[-1], telegram.keyboard) == (
+        messages.ask_transfer_amount("Карта", "RUB"),
+        MAIN,
+    )
+    await telegram.feed("много", ANNA)
+    assert telegram.sent[-1] == messages.TRANSFER_AMOUNT_INVALID
+    await telegram.feed("150", ANNA)
+
+    assert telegram.sent[-1] == "Перевод 150.00 RUB: «Карта» → «Наличные»."
+    balances = {
+        a["name"]: a["balance"]
+        for a in (await api.request(ANNA, "GET", "/accounts/balances"))["accounts"]
+    }
+    assert (balances["Карта"], balances["Наличные"]) == ("350.00", "150.00")
+    [[undo]] = telegram.buttons
+    await telegram.press(undo)
+    assert telegram.sent[-1] == messages.ENTRY_UNDONE
+
+
+async def test_a_transfer_with_one_account_explains_what_is_missing(
+    telegram: Telegram, api: ApiClient
+) -> None:
+    await telegram.feed("/start", ANNA)
+    await open_account(api, ANNA, "Карта")
+
+    await telegram.feed(menu.TRANSFER, ANNA)
+
+    assert (telegram.sent[-1], telegram.keyboard) == (messages.TRANSFER_NEEDS_TWO, MAIN)
