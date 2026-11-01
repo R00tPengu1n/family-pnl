@@ -15,7 +15,7 @@ from typing import Any
 
 from family_pnl_bot import messages
 from family_pnl_bot.api_client import ApiClient, ApiError
-from family_pnl_bot.parser import Entry, EntryError, parse_entry
+from family_pnl_bot.parser import Entry, EntryError, parse_entry, parse_top_up
 
 # Entries waiting for a button press; the oldest are forgotten first.
 MAX_PENDING = 1000
@@ -48,6 +48,7 @@ class Pending:
     entry: Entry
     currency: str
     category: Option | None  # None while the category is being asked
+    account: Option | None = None  # chosen up front by a top-up
     options: tuple[Option, ...] = field(default=())  # what the buttons offer now
 
 
@@ -78,9 +79,54 @@ class QuickEntry:
         del self._pending[pending_id]
         chosen = pending.options[int(index)]
         try:
+            if pending.category is None and pending.account is not None:
+                return await self._record(pending, chosen, pending.account)
             if pending.category is None:
                 return await self._complete(pending, chosen)
             return await self._record(pending, pending.category, chosen)
+        except ApiError as error:
+            return Reply(messages.error_text(error))
+
+    async def top_up_accounts(self, telegram_id: int) -> tuple[Reply, list[dict[str, Any]]]:
+        """The first question of the top-up dialog and the member's accounts to offer.
+
+        No accounts (or an API error) gives the reply to show and nothing to ask.
+        """
+        try:
+            own = await self._member_accounts(telegram_id)
+        except ApiError as error:
+            return Reply(messages.error_text(error)), []
+        if not own:
+            return Reply(messages.NO_ACCOUNTS), []
+        return Reply(messages.ASK_TOP_UP_ACCOUNT), own
+
+    async def top_up(
+        self, telegram_id: int, account: Option, currency: str, text: str
+    ) -> Reply | None:
+        """An income to the chosen account; None when the text is not an amount.
+
+        The currency defaults to the account's. The source is matched to an income
+        category like a quick entry's, or asked with buttons.
+        """
+        try:
+            entry = parse_top_up(text)
+        except EntryError:
+            return None
+        pending = Pending(
+            telegram_id=telegram_id,
+            entry=entry,
+            currency=entry.currency or currency,
+            category=None,
+            account=account,
+        )
+        try:
+            categories = await self._api.request(
+                telegram_id, "GET", "/categories", params={"kind": "income"}
+            )
+            category, candidates = match_category(entry.category, categories)
+            if category is None:
+                return self._ask(pending, messages.CHOOSE_CATEGORY, candidates or categories)
+            return await self._record(pending, category, account)
         except ApiError as error:
             return Reply(messages.error_text(error))
 
@@ -117,9 +163,7 @@ class QuickEntry:
 
     async def _complete(self, pending: Pending, category: Option) -> Reply:
         """The category is known: pick the account, or ask for it."""
-        me = await self._api.me(pending.telegram_id)
-        accounts = await self._api.request(pending.telegram_id, "GET", "/accounts")
-        own = [a for a in accounts if a["shared"] or a["holder_id"] == me.id]
+        own = await self._member_accounts(pending.telegram_id)
         if not own:
             return Reply(messages.NO_ACCOUNTS)
         account, candidates = _default_account(own, pending.currency)
@@ -128,6 +172,12 @@ class QuickEntry:
                 replace(pending, category=category), messages.CHOOSE_ACCOUNT, candidates
             )
         return await self._record(pending, category, account)
+
+    async def _member_accounts(self, telegram_id: int) -> list[dict[str, Any]]:
+        """The accounts the member records on: their own and the shared ones."""
+        me = await self._api.me(telegram_id)
+        accounts = await self._api.request(telegram_id, "GET", "/accounts")
+        return [a for a in accounts if a["shared"] or a["holder_id"] == me.id]
 
     async def _record(self, pending: Pending, category: Option, account: Option) -> Reply:
         entry = pending.entry

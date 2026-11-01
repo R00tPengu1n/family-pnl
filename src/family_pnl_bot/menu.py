@@ -7,6 +7,7 @@ menu button is matched by its exact text, so a label is changed here and nowhere
 Rows = tuple[tuple[str, ...], ...]
 
 RECORD = "➕ Записать"
+TOP_UP = "💵 Пополнить"
 BALANCE = "💰 Баланс"
 REPORT = "📊 Отчёт"
 BUDGET = "📅 Бюджет"
@@ -28,10 +29,10 @@ GET_CODE = "Получить код"
 ACCOUNT_NAMES = ("Карта", "Наличные")
 
 MAIN: Rows = (
-    (RECORD, BALANCE),
-    (REPORT, BUDGET),
-    (NEW_ACCOUNT, SETTINGS),
-    (HELP,),
+    (RECORD, TOP_UP),
+    (BALANCE, REPORT),
+    (BUDGET, NEW_ACCOUNT),
+    (SETTINGS, HELP),
 )
 SETTINGS_MENU: Rows = (
     (DISPLAY_CURRENCY, INPUT_CURRENCY),
@@ -45,6 +46,12 @@ ACCOUNT_NAME: Rows = (ACCOUNT_NAMES, (CANCEL,))
 CURRENCY: Rows = (("BYN", "RUB", "USD"), (CANCEL,))
 ACCOUNT_KIND: Rows = ((PERSONAL, SHARED), (CANCEL,))
 PASSWORD_CONFIRM: Rows = ((GET_CODE,), (CANCEL,))
+
+
+def account_label(account: dict[str, str | bool]) -> str:
+    """An account on a button: «Карта · BYN», «Копилка · BYN · общий»."""
+    label = f"{account['name']} · {account['currency']}"
+    return f"{label} · общий" if account["shared"] else label
 
 
 def choices(options: list[str], per_row: int = 2) -> Rows:

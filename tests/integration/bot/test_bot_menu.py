@@ -279,3 +279,54 @@ async def test_a_command_inside_a_dialog_is_not_taken_as_the_answer(
 
     assert telegram.sent[-1] == messages.NO_ACCOUNTS_YET
     assert await api.request(ANNA, "GET", "/accounts") == []
+
+
+async def test_top_up_asks_the_account_then_the_amount(telegram: Telegram, api: ApiClient) -> None:
+    await telegram.feed("/start", ANNA)
+    for name, currency, shared in (("Карта", "RUB", False), ("Копилка", "BYN", True)):
+        body = {"name": name, "type": "card", "currency": currency, "shared": shared}
+        await api.request(ANNA, "POST", "/accounts", json=body)
+
+    await telegram.feed(menu.TOP_UP, ANNA)
+    assert (telegram.sent[-1], telegram.keyboard) == (
+        messages.ASK_TOP_UP_ACCOUNT,
+        [["Карта · RUB", "Копилка · BYN · общий"], ["Отмена"]],
+    )
+    await telegram.feed("Сбер", ANNA)
+    assert telegram.sent[-1] == messages.CHOOSE_ACCOUNT_BUTTON
+    await telegram.feed("Копилка · BYN · общий", ANNA)
+    assert (telegram.sent[-1], telegram.keyboard) == (
+        messages.ask_top_up_amount("Копилка"),
+        MAIN,
+    )
+    await telegram.feed("много", ANNA)
+    assert telegram.sent[-1] == messages.TOP_UP_AMOUNT_INVALID
+    await telegram.feed("зарплата 2500", ANNA)
+
+    assert telegram.sent[-1] == "Доход 2500.00 BYN записан: «Зарплата», счёт «Копилка»."
+    assert len(telegram.buttons) == 1  # undo
+    await telegram.feed("продукты 5", ANNA)  # the dialog is over: a quick entry again
+    assert telegram.sent[-1] == "Расход 5.00 RUB записан: «Продукты», счёт «Карта»."
+
+
+async def test_a_bare_amount_asks_the_income_category(telegram: Telegram, api: ApiClient) -> None:
+    await telegram.feed("/start", ANNA)
+    body = {"name": "Карта", "type": "card", "currency": "RUB"}
+    await api.request(ANNA, "POST", "/accounts", json=body)
+
+    await telegram.feed(menu.TOP_UP, ANNA)
+    await telegram.feed("Карта · RUB", ANNA)
+    await telegram.feed("300", ANNA)
+    assert telegram.sent[-1] == messages.CHOOSE_CATEGORY
+    await telegram.press(telegram.buttons[0][0])
+
+    assert telegram.sent[-1].startswith("Доход 300.00 RUB записан: «")
+    assert telegram.sent[-1].endswith("», счёт «Карта».")
+
+
+async def test_top_up_without_an_account_says_to_open_one(telegram: Telegram) -> None:
+    await telegram.feed("/start", ANNA)
+
+    await telegram.feed(menu.TOP_UP, ANNA)
+
+    assert (telegram.sent[-1], telegram.keyboard) == (messages.NO_ACCOUNTS, MAIN)
