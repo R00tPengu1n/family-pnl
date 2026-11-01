@@ -290,6 +290,7 @@ def build_router() -> Router:
         Dialog.password: on_password_step,
     }
     for step, handler in steps.items():
-        router.message.register(handler, StateFilter(step), F.text)
+        # A command is not an answer: it goes to its own handler.
+        router.message.register(handler, StateFilter(step), F.text, ~F.text.startswith("/"))
     router.callback_query.register(on_limit_button, F.data == LIMIT_DATA)
     return router

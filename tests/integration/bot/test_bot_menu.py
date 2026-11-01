@@ -267,3 +267,15 @@ def test_the_intro_links_the_api_documentation_when_known() -> None:
 
 def test_choices_put_options_in_rows_and_cancel_last() -> None:
     assert menu.choices(["a", "b", "c"]) == (("a", "b"), ("c",), ("Отмена",))
+
+
+async def test_a_command_inside_a_dialog_is_not_taken_as_the_answer(
+    telegram: Telegram, api: ApiClient
+) -> None:
+    await telegram.feed("/start", ANNA)
+    await telegram.feed(menu.NEW_ACCOUNT, ANNA)
+
+    await telegram.feed("/balance", ANNA)
+
+    assert telegram.sent[-1] == messages.NO_ACCOUNTS_YET
+    assert await api.request(ANNA, "GET", "/accounts") == []
