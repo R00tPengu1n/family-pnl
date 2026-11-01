@@ -104,7 +104,7 @@ async def test_the_balance_without_accounts(api: FakeApi) -> None:
     api.answers["/accounts/balances"] = {"display_currency": "RUB", "total": "0", "accounts": []}
 
     assert await reports(api).balance(ME) == Reply(
-        "Счетов пока нет. Заведите первый: /account Карта BYN"
+        "Счетов пока нет. Откройте первый: кнопка «🏦 Новый счёт»."
     )
 
 

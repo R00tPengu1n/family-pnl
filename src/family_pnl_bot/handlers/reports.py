@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 
 from family_pnl_bot.accounts import create_account, credentials_code
 from family_pnl_bot.api_client import ApiClient
-from family_pnl_bot.keyboards import markup
+from family_pnl_bot.keyboards import answer_markup, markup
 from family_pnl_bot.quick_entry import Reply
 from family_pnl_bot.reports import CURRENCY_PREFIX, INPUT_PREFIX, REPORT_PREFIX, Reports
 
@@ -50,7 +50,7 @@ async def on_currency_choice(callback: CallbackQuery, reports: Reports) -> None:
 
 
 async def _answer(message: Message, reply: Reply) -> None:
-    await message.answer(reply.text, reply_markup=markup(reply))
+    await message.answer(reply.text, reply_markup=answer_markup(reply))
 
 
 async def _edit(callback: CallbackQuery, reply: Reply) -> None:

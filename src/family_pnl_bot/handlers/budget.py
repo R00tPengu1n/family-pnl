@@ -1,23 +1,26 @@
-"""/budget, /limit <category> <amount> and the owner's approve button."""
+"""/budget, /limit <category> <amount> and the owner's approve button.
+
+The "set a limit" button under the budget starts a dialog in `menu.py`.
+"""
 
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import CallbackQuery, Message
 
 from family_pnl_bot.budget import APPROVE_PREFIX, BudgetBot
-from family_pnl_bot.keyboards import markup
+from family_pnl_bot.keyboards import answer_markup
 
 
 async def on_budget(message: Message, budget: BudgetBot) -> None:
     if message.from_user is not None:
         reply = await budget.view(message.from_user.id)
-        await message.answer(reply.text, reply_markup=markup(reply))
+        await message.answer(reply.text, reply_markup=answer_markup(reply))
 
 
 async def on_limit(message: Message, command: CommandObject, budget: BudgetBot) -> None:
     if message.from_user is not None:
         reply = await budget.set_limit(message.from_user.id, command.args)
-        await message.answer(reply.text)
+        await message.answer(reply.text, reply_markup=answer_markup(reply))
 
 
 async def on_approve(callback: CallbackQuery, budget: BudgetBot) -> None:

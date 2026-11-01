@@ -138,7 +138,7 @@ async def test_without_an_account_of_the_member_nothing_is_recorded(
 
     reply = await entry.handle_text(ME, "такси 5")
 
-    assert reply == Reply("Сначала заведите счёт: /account Карта BYN")
+    assert reply == Reply("Сначала откройте счёт: кнопка «🏦 Новый счёт».")
     assert api.created == []
 
 
