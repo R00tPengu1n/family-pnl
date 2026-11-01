@@ -64,7 +64,8 @@ class CategoryRepository:
             query = query.where(Category.kind == kind)
         if not include_archived:
             query = query.where(Category.archived.is_(False))
-        return list(await self._session.scalars(query.order_by(Category.kind, Category.name)))
+        query = query.order_by(Category.kind, Category.position, Category.name)
+        return list(await self._session.scalars(query))
 
 
 class OperationRepository:

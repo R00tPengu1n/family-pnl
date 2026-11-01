@@ -45,6 +45,7 @@ class TransferSameAccountError(ValidationFailedError):
 
 
 # Created with every household. The names are data shown to Russian-speaking users of the bot.
+# The order is the order people see them in; "Другое" stays last of its kind.
 DEFAULT_CATEGORIES: tuple[tuple[CategoryKind, str], ...] = (
     (CategoryKind.EXPENSE, "Продукты"),
     (CategoryKind.EXPENSE, "Кафе и рестораны"),
@@ -53,9 +54,9 @@ DEFAULT_CATEGORIES: tuple[tuple[CategoryKind, str], ...] = (
     (CategoryKind.EXPENSE, "Связь и интернет"),
     (CategoryKind.EXPENSE, "Здоровье"),
     (CategoryKind.EXPENSE, "Одежда"),
-    (CategoryKind.EXPENSE, "Дети"),
     (CategoryKind.EXPENSE, "Развлечения"),
     (CategoryKind.EXPENSE, "Подарки"),
+    (CategoryKind.EXPENSE, "Дети"),
     (CategoryKind.EXPENSE, "Другое"),
     (CategoryKind.INCOME, "Зарплата"),
     (CategoryKind.INCOME, "Подработка"),
