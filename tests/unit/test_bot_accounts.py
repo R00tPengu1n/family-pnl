@@ -116,8 +116,8 @@ async def test_password_gives_a_code_and_never_asks_for_the_password() -> None:
     reply = await credentials_code(cast(ApiClient, CodeApi()), ME)
 
     assert reply.text == (
-        "Код для email и пароля: K7Q2-M9XD, действует 10 минут.\n"
-        "Отправьте его в API: POST /auth/credentials с полями code, email и password. "
+        "Ваш код: K7Q2-M9XD. Действует 10 минут.\n"
+        "Впишите его вместе с email и паролем в POST /auth/credentials. "
         "Пароль в этот чат не пишите."
     )
 

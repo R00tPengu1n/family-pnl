@@ -24,8 +24,9 @@ API that holds all business logic.
   of a limit; the owner gets a daily reminder while next month's budget is not approved.
 - **Reports.** Totals, by category, by member and by month, plan vs actual, in the
   member's display currency; CSV export, and CSV import with an error for every bad cell.
-- **Bot.** Quick entry (`кофе 5.50`, `такси 300 rub`, `+зарплата 2500 byn`), balance,
-  monthly report, budget and limits, currency settings.
+- **Bot.** A menu of Russian buttons for every action; step-by-step dialogs to open an
+  account, set a limit or pick a currency; quick entry (`кофе 5.50`, `такси 300 rub`,
+  `+зарплата 2500 byn`), balance, monthly report, budget and limits, invite links.
 
 ## Architecture
 
@@ -152,6 +153,7 @@ only in `.env` and in GitHub Secrets.
 | `FAMILY_PNL_JWT_SECRET` | signing key of access tokens, 32+ characters |
 | `FAMILY_PNL_BOT_API_SECRET` | shared by the API and the bot; the bot endpoints are off without it |
 | `FAMILY_PNL_TELEGRAM_BOT_TOKEN` | the bot token; the worker sends notifications with it |
+| `FAMILY_PNL_PUBLIC_API_URL` | optional public address of the API; the bot links its `/docs` |
 | `FAMILY_PNL_DEFAULT_TIMEZONE` | time zone of new households, `Europe/Minsk` |
 | `FAMILY_PNL_BUDGET_WINDOW_START_DAY`, `…_END_DAY` | the approval window, 20 and 30 |
 

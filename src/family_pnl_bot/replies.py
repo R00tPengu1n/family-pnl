@@ -1,4 +1,4 @@
-"""Replies to /start and /link, apart from aiogram so they are cheap to import and test."""
+"""Replies to /start, /link and invites, apart from aiogram so they are cheap to test."""
 
 from family_pnl_bot import messages
 from family_pnl_bot.api_client import ApiClient, ApiError
@@ -42,3 +42,18 @@ async def link_reply(
     except ApiError as error:
         return messages.error_text(error)
     return messages.linked(me.email or me.display_name or me.household_name)
+
+
+async def invite_replies(api: ApiClient, telegram_id: int, bot_username: str) -> list[str]:
+    """The owner's invite: how to pass it on, then a message to forward with the link.
+
+    The link opens the bot with `/start <code>`, which registers the person into the family.
+    """
+    try:
+        body = await api.request(telegram_id, "POST", "/household/invites")
+    except ApiError as error:
+        if error.code == "permission_denied":
+            return [messages.INVITE_REFUSED]
+        return [messages.error_text(error)]
+    link = f"https://t.me/{bot_username}?start={body['code']}"
+    return [messages.INVITE_HOWTO, messages.invite(link)]
