@@ -25,8 +25,9 @@ API that holds all business logic.
 - **Reports.** Totals, by category, by member and by month, plan vs actual, in the
   member's display currency; CSV export, and CSV import with an error for every bad cell.
 - **Bot.** A menu of Russian buttons for every action; step-by-step dialogs to open an
-  account, set a limit or pick a currency; quick entry (`кофе 5.50`, `такси 300 rub`,
-  `+зарплата 2500 byn`), balance, monthly report, budget and limits, invite links.
+  account, top up an account, transfer between accounts, set a limit or pick a currency;
+  quick entry (`кофе 5.50`, `такси 300 rub`, `+зарплата 2500 byn`), balance, monthly
+  report, budget and limits, invite links.
 
 ## Architecture
 
@@ -104,12 +105,21 @@ until then.
 
 ## Deploy to a server
 
-One VPS (KVM, Ubuntu 24.04, 2 vCPU, 2–4 GB RAM) runs the same Compose stack. [docs/deploy.md](docs/deploy.md)
-has every step: key-only SSH and a firewall with only SSH open, Docker, `.env` on the
-server, restart after a reboot, optional HTTPS behind Caddy, daily PostgreSQL backups
-with rotation (`scripts/backup.sh`) and restore (`scripts/restore.sh`), and continuous
-deployment: every green `main` is built, pushed to GHCR and rolled out over SSH; a
-failed migration stops the rollout and keeps the previous version running.
+The service runs locally for the owner's household; public deployment is planned. The
+target is one VPS (KVM, Ubuntu 24.04, 2 vCPU, 2–4 GB RAM) running the same Compose stack,
+deployed by hand following [docs/deploy.md](docs/deploy.md): key-only SSH and a firewall
+with only SSH open, Docker, `.env` on the server, restart after a reboot, optional HTTPS
+behind Caddy, daily PostgreSQL backups with rotation (`scripts/backup.sh`) and restore
+(`scripts/restore.sh`), and updates with `git pull` and `docker compose up --build -d`.
+
+Migrations run in one transaction before the API and the worker start. A failed migration
+leaves the schema at its previous revision; `docker compose up` exits with an error and
+does not start the API, the worker and the bot, which depend on `migrate`. Check
+`docker compose ps -a` and `docker compose logs migrate`, fix the migration and run
+`docker compose up` again.
+
+Continuous deployment (build every green `main`, push it to GHCR, roll it out over SSH)
+is planned as task 36 and open as [PR #52](https://github.com/R00tPengu1n/family-pnl/pull/52).
 
 ## Develop
 
@@ -159,6 +169,18 @@ only in `.env` and in GitHub Secrets.
 
 ## Telegram bot
 
+Everything is reachable from the menu buttons; the commands below are shortcuts.
+
+| Button | What it does |
+|---|---|
+| «Записать» | a hint for quick entry (below) |
+| «Пополнить» | records an income: the account, then the amount (and where it came from) |
+| «Перевод» | from the member's own or a shared account to any account of the family, then the amount in the source currency; between currencies the API converts at the day's rate |
+| «Баланс», «Отчёт», «Бюджет» | the same as `/balance`, `/report`, `/budget` |
+| «Новый счёт» | a dialog: name, currency, personal or shared (owner) |
+| «Настройки» | display and input currency, invite to the family, link an API account, email and password |
+| «Помощь» | the same as `/help` |
+
 | Command | What it does |
 |---|---|
 | `/start` | creates an account and a household, or welcomes back |
@@ -172,6 +194,7 @@ only in `.env` and in GitHub Secrets.
 | `/budget` | next month's draft and this month's spending; the owner approves here |
 | `/limit продукты 800` | sets a limit in next month's budget |
 | `/currency`, `/input` | display currency; currency of amounts typed without one |
+| `/menu`, `/help`, `/cancel` | shows the menu; how to use the bot; leaves a dialog |
 
 Quick entry: the text before the amount is the category (matched ignoring case, or by
 its beginning; otherwise the bot offers buttons), a comma works as the decimal point,
@@ -214,14 +237,15 @@ category, member, metric, amount, currency`), UTF-8 with a BOM for Excel.
 ## Limitations
 
 - One household per user; no web or mobile client — the bot and the REST API.
-- Transfers are recorded through the API; the bot and the CSV import handle incomes and
-  expenses.
+- The CSV import handles incomes and expenses only; transfers are recorded in the bot or
+  through the API.
 - Currencies: BYN, RUB and USD, at NBRB rates.
 - Bot questions waiting for a button press and `/link` attempt counters live in the bot's
   memory and are lost when it restarts.
-- Deployment is described and scripted ([docs/deploy.md](docs/deploy.md)) but the
-  service is not running on a public server yet.
+- Not deployed publicly yet: the service runs locally for the owner's household.
+  Deployment is manual ([docs/deploy.md](docs/deploy.md)); continuous deployment is
+  planned (task 36, PR #52).
 
 ## License
 
-The repository has no license file yet; the owner will choose one.
+[MIT](LICENSE).
