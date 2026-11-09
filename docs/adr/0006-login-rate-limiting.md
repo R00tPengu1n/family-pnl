@@ -37,4 +37,6 @@ Redis is already part of the stack.
 - During a Redis outage there is no limit; the warning makes the outage visible.
 - Behind a reverse proxy the client IP must come from the proxy (`uvicorn --proxy-headers`
   with trusted `--forwarded-allow-ips`), otherwise every request shares the proxy's IP
-  (deployment, Task 35).
+  (deployment, Task 35). Updated 2026-11-09: in Docker Compose the trusted proxies are set
+  with `FORWARDED_ALLOW_IPS`; behind Caddy on the host that is the gateway of the Compose
+  network, see [docs/deploy.md](../deploy.md), section 5.

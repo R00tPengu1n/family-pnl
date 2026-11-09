@@ -15,7 +15,6 @@ from family_pnl_bot.throttle import AttemptLimiter
 from tests.integration.helpers import sign_up
 
 ANNA, IVAN = 5000000001, 5000000002
-HELP = messages.HELP
 
 
 @pytest.fixture
@@ -31,7 +30,12 @@ async def invite_from(api: ApiClient, owner: int) -> str:
 async def test_a_new_telegram_user_gets_an_account_and_a_household(api: ApiClient) -> None:
     reply = await start_reply(api, ANNA, "Анна", None)
 
-    assert reply == f"Готово! Создана семья «Family», вы — её владелец.\n{HELP}"
+    assert reply == messages.created("Family")
+    assert reply.startswith(
+        "Готово, вы зарегистрированы! Пароль не нужен: бот узнаёт вас по Telegram.\n"
+        "Создана семья «Family», вы её владелец."
+    )
+    assert "«⚙️ Настройки» → «👥 Пригласить в семью»" in reply
     assert (await api.me(ANNA)).role == "owner"
 
 
@@ -39,7 +43,7 @@ async def test_start_again_welcomes_back(api: ApiClient) -> None:
     await start_reply(api, ANNA, "Анна", None)
 
     assert await start_reply(api, ANNA, "Анна", None) == (
-        f"С возвращением! Ваша семья — «Family».\n{HELP}"
+        "С возвращением! Ваша семья — «Family». Меню внизу."
     )
 
 
@@ -49,7 +53,9 @@ async def test_start_with_an_invite_joins_the_household(api: ApiClient) -> None:
 
     reply = await start_reply(api, IVAN, "Иван", code)
 
-    assert reply == f"Вы присоединились к семье «Family».\n{HELP}"
+    assert reply == messages.joined("Family")
+    assert reply.startswith("Готово, вы в семье «Family»! Пароль не нужен")
+    assert "Пригласить" not in reply  # only the owner invites
     ivan = await api.me(IVAN)
     assert (ivan.role, ivan.display_name) == ("member", "Иван")
 
@@ -63,7 +69,7 @@ async def test_a_registered_user_with_an_empty_household_joins_by_invite(
 
     reply = await start_reply(api, IVAN, "Иван", code)
 
-    assert reply == f"Вы присоединились к семье «Family».\n{HELP}"
+    assert reply == messages.joined("Family")
     assert (await api.me(IVAN)).role == "member"
 
 

@@ -10,7 +10,7 @@ A leading `+` makes it an income. Amounts are parsed straight into `Decimal`.
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 
 # Currency words and signs as people type them, in lower case.
@@ -57,6 +57,20 @@ def parse_entry(text: str) -> Entry:
     if not category:
         raise EntryError("Не хватает категории: «кофе 5.50».")
     return Entry(income=income, category=category, amount=amount, currency=currency)
+
+
+def parse_top_up(text: str) -> Entry:
+    """An income for the top-up dialog: «2500», «2500 byn» or «зарплата 2500».
+
+    The plus is implied (one typed out of habit is dropped). Without a source the category
+    is empty: the bot asks for it.
+    """
+    text = text.strip().removeprefix("+")
+    try:
+        return parse_entry(f"+{text}")
+    except EntryError:
+        # The amount alone: parse it behind a stand-in source, then drop the source.
+        return replace(parse_entry(f"+_ {text}"), category="")
 
 
 def _amount(word: str) -> tuple[Decimal, str | None]:

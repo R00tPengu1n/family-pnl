@@ -10,12 +10,17 @@ repos:
       - id: check-merge-conflict
       - id: check-toml
       - id: check-yaml
-      - id: end-of-file-fixer
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
 
   - repo: local
     hooks:
+      # From the project venv: Smart App Control blocks the hook's own .exe wrapper.
+      - id: end-of-file-fixer
+        name: fix end of files
+        entry: uv run python -m pre_commit_hooks.end_of_file_fixer
+        language: system
+        types: [text]
       - id: ruff-check
         name: ruff check
         entry: uv run python -m ruff check --force-exclude

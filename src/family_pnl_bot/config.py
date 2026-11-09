@@ -19,6 +19,9 @@ class BotSettings(BaseSettings):
     # Shared with the API (ADR-0007): identifies the bot, carries no user rights.
     bot_api_secret: SecretStr
     api_url: str = "http://127.0.0.1:8000"
+    # Where people open the API from outside, e.g. https://pnl.example.com; the bot links
+    # its documentation when explaining email and password. Unset: no link.
+    public_api_url: str | None = None
     # /link codes can only be tried through the bot, so the bot limits the attempts.
     link_max_attempts: int = Field(default=5, ge=1)
     link_window_seconds: int = Field(default=15 * 60, ge=1)

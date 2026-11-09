@@ -1,4 +1,4 @@
-"""/budget, /limit and approval: next month's draft and this month's execution.
+"""/budget, limits and approval: next month's draft and this month's execution.
 
 Limits are set for next month's budget, the one prepared in the approval window. The
 API decides who may change or approve it; the bot explains a refusal in Russian. Only
@@ -17,6 +17,8 @@ from family_pnl_bot.formatting import amount, month_name, shift_month
 from family_pnl_bot.quick_entry import Button, Reply, match_category
 
 APPROVE_PREFIX = "bud"
+# The "set a limit" button under the budget; it starts the limit dialog.
+LIMIT_DATA = f"{APPROVE_PREFIX}:limit"
 
 
 def _now() -> datetime:
@@ -42,15 +44,33 @@ class BudgetBot:
         text = "\n".join(
             [*_draft_lines(following, draft), "", *_execution_lines(current, execution)]
         )
-        if me.role != "owner" or draft["status"] == "approved":
-            return Reply(text)
-        approve = Button(messages.APPROVE_BUTTON, f"{APPROVE_PREFIX}:approve:{_key(following)}")
-        return Reply(text, ((approve,),))
+        rows: tuple[tuple[Button, ...], ...] = ((Button(messages.LIMIT_BUTTON, LIMIT_DATA),),)
+        if me.role == "owner" and draft["status"] != "approved":
+            approve = Button(messages.APPROVE_BUTTON, f"{APPROVE_PREFIX}:approve:{_key(following)}")
+            rows = (*rows, (approve,))
+        return Reply(text, rows)
+
+    async def limit_categories(self, telegram_id: int) -> tuple[Reply, list[str]]:
+        """The first question of the limit dialog and the expense categories to offer.
+
+        No categories (or an API error) gives the reply to show and nothing to ask.
+        """
+        try:
+            following = shift_month(await self._this_month(telegram_id), 1)
+            categories = await self._api.request(
+                telegram_id, "GET", "/categories", params={"kind": "expense"}
+            )
+        except ApiError as error:
+            return Reply(messages.error_text(error)), []
+        if not categories:
+            return Reply(messages.NO_EXPENSE_CATEGORIES), []
+        names = [category["name"] for category in categories]
+        return Reply(messages.ask_limit_category(month_name(following))), names
 
     async def set_limit(self, telegram_id: int, args: str | None) -> Reply:
         """`/limit продукты 800`: the limit of a category in next month's budget."""
         words = (args or "").split()
-        limit = _limit_amount(words[-1]) if len(words) > 1 else None
+        limit = limit_amount(words[-1]) if len(words) > 1 else None
         if limit is None:
             return Reply(messages.LIMIT_USAGE)
         try:
@@ -99,7 +119,7 @@ def _key(month: date) -> str:
     return month.strftime("%Y-%m")
 
 
-def _limit_amount(word: str) -> Decimal | None:
+def limit_amount(word: str) -> Decimal | None:
     """A positive amount with at most two decimals, a comma allowed; None otherwise."""
     try:
         value = Decimal(word.replace(",", "."))
@@ -125,7 +145,7 @@ def _draft_lines(month: date, draft: dict[str, Any]) -> list[str]:
         f"Окно утверждения: {opens}–{closes}" + (" (открыто)" if window["open"] else ""),
     ]
     if not draft["limits"]:
-        return [*lines, "Лимитов пока нет. Задайте: /limit продукты 800"]
+        return [*lines, messages.NO_LIMITS_YET]
     return lines + [f"• {item['category']} — {amount(item['amount'])}" for item in draft["limits"]]
 
 

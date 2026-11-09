@@ -138,7 +138,7 @@ async def test_without_an_account_of_the_member_nothing_is_recorded(
 
     reply = await entry.handle_text(ME, "такси 5")
 
-    assert reply == Reply("Сначала заведите счёт: /account Карта BYN")
+    assert reply == Reply("Сначала откройте счёт: кнопка «🏦 Новый счёт».")
     assert api.created == []
 
 
@@ -307,3 +307,53 @@ async def test_an_undo_button_the_bot_did_not_send_is_refused(
 ) -> None:
     assert await entry.undo(ME, data) == Reply(messages.ENTRY_EXPIRED)
     assert api.deleted == []
+
+
+async def test_a_top_up_goes_to_the_chosen_account_in_its_currency(
+    entry: QuickEntry, api: FakeApi
+) -> None:
+    api.accounts = [account("card", "BYN"), account("box", "USD", holder=None)]
+
+    question, offered = await entry.top_up_accounts(ME)
+    reply = await entry.top_up(ME, quick_entry.Option("box", "Box"), "USD", "зарплата 2500")
+
+    assert question == Reply("Какой счёт пополнить?")
+    assert [a["id"] for a in offered] == ["card", "box"]
+    assert (api.created[0]["account_id"], api.created[0]["currency"]) == ("box", "USD")
+    assert reply is not None
+    assert reply.text == "Доход 2500.00 USD записан: «Зарплата», счёт «Box»."
+
+
+async def test_a_top_up_without_a_source_asks_the_category_then_records(
+    entry: QuickEntry, api: FakeApi
+) -> None:
+    api.categories["income"] = [SALARY, {"id": "gift", "name": "Подарки"}]
+    api.accounts = [account("card", "BYN"), account("box", "USD", holder=None)]
+
+    question = await entry.top_up(ME, quick_entry.Option("box", "Box"), "USD", "100 byn")
+    assert question is not None
+    assert labels(question) == [["Зарплата", "Подарки"]]
+    reply = await entry.choose(ME, data_of(question, "Подарки"))
+
+    assert api.created[0]["account_id"] == "box"  # not asked again: chosen up front
+    assert reply.text == "Доход 100.00 BYN записан: «Подарки», счёт «Box»."
+
+
+async def test_a_top_up_that_is_not_an_amount_is_none(entry: QuickEntry, api: FakeApi) -> None:
+    assert await entry.top_up(ME, quick_entry.Option("card", "Card"), "BYN", "много") is None
+    assert api.created == []
+
+
+async def test_top_up_without_accounts_or_with_api_errors_asks_nothing(
+    entry: QuickEntry, api: FakeApi
+) -> None:
+    api.accounts = []
+    assert await entry.top_up_accounts(ME) == (Reply(messages.NO_ACCOUNTS), [])
+
+    api.failures[("GET", "/accounts")] = ApiError(503, "api_unavailable", "")
+    unavailable = Reply("Сервис сейчас недоступен. Попробуйте чуть позже.")
+    assert await entry.top_up_accounts(ME) == (unavailable, [])
+
+    api.failures[("GET", "/categories")] = ApiError(503, "api_unavailable", "")
+    card = quick_entry.Option("card", "Card")
+    assert await entry.top_up(ME, card, "BYN", "2500") == unavailable

@@ -63,9 +63,15 @@ async def test_only_the_owner_sees_the_approve_button(api: ApiClient) -> None:
     owner = await bot(api).view(ANNA)
     member = await bot(api).view(IVAN)
 
-    assert [[b.text for b in row] for row in owner.buttons] == [["Утвердить"]]
-    assert owner.buttons[0][0].data == "bud:approve:2026-11"
-    assert member.buttons == ()
+    assert [[b.text for b in row] for row in owner.buttons] == [
+        ["✏️ Задать лимит"],
+        ["Утвердить"],
+    ]
+    assert [[b.data for b in row] for row in owner.buttons] == [
+        ["bud:limit"],
+        ["bud:approve:2026-11"],
+    ]
+    assert [[b.text for b in row] for row in member.buttons] == [["✏️ Задать лимит"]]
     assert owner.text == member.text
     assert owner.text.splitlines() == [
         "Бюджет на ноябрь 2026, RUB: черновик",
@@ -85,7 +91,7 @@ async def test_the_owner_approves_and_the_button_goes(api: ApiClient) -> None:
 
     assert reply.text == "Бюджет на ноябрь 2026 утверждён."
     after = await bot(api).view(ANNA)
-    assert after.buttons == ()
+    assert [[b.data for b in row] for row in after.buttons] == [["bud:limit"]]
     assert after.text.splitlines()[0] == "Бюджет на ноябрь 2026, RUB: утверждён"
 
 
@@ -103,7 +109,9 @@ async def test_a_member_pressing_approve_is_refused(api: ApiClient) -> None:
 async def test_approving_a_month_without_limits_says_what_to_do(api: ApiClient) -> None:
     reply = await bot(api).approve(ANNA, "bud:approve:2026-11")
 
-    assert reply.text == "Бюджета на этот месяц ещё нет: сначала задайте лимиты через /limit."
+    assert reply.text == (
+        "Бюджета на этот месяц ещё нет: сначала задайте лимиты кнопкой «✏️ Задать лимит»."
+    )
 
 
 @pytest.mark.usefixtures("family")

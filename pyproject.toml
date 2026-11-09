@@ -3,7 +3,8 @@ name = "family-pnl"
 version = "0.1.0"
 description = "Family finance tracking service: REST API, Telegram bot and background worker."
 readme = "README.md"
-requires-python = ">=3.12"
+license = "MIT"
+requires-python = ">=3.13"
 dependencies = [
     "aiogram>=3.28.2",
     "alembic>=1.20.1",
@@ -30,6 +31,7 @@ dev = [
     "mypy>=2.4.0",
     "pip-audit>=2.10.1",
     "pre-commit>=4.7.0",
+    "pre-commit-hooks>=6.0.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
@@ -50,7 +52,7 @@ packages = ["src/family_pnl", "src/family_pnl_bot"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -93,7 +95,7 @@ ban-relative-imports = "all"
 
 [tool.mypy]
 strict = true
-python_version = "3.12"
+python_version = "3.13"
 mypy_path = "src"
 packages = ["family_pnl", "family_pnl_bot"]
 plugins = ["pydantic.mypy"]

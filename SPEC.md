@@ -76,7 +76,8 @@ service, repository, API, tests.
   owner) or shared; type `card | cash | savings`; currency; balance computed
   from operations.
 - Categories: income and expense; a default set is created with each household;
-  members can add their own.
+  members can add their own. Lists show the defaults in a fixed order ("Другое"
+  last), then the household's own categories by name.
 - Operations: `income`, `expense`, `transfer` (between accounts, possibly with
   currency conversion). Fields: amount, currency, date, category, account,
   comment, author.
@@ -121,10 +122,30 @@ service, repository, API, tests.
 - Quick entry: `кофе 5.50`, `такси 300 rub`, `+зарплата 2500 byn` — amount,
   optional currency (defaults to the member's usual input currency), category
   matched by name or chosen with buttons.
-- Balance, monthly report, switching display currency.
+- Balance, monthly report, switching display currency. The balance also shows
+  this month's expenses and what is left of each budget limit (an overspend
+  shows how much over).
 - Budget draft: view, add/change limits in the window, approve (owner).
 - Receives reminders and limit alerts.
 - Talks only to the REST API, never to the database.
+- Menu of Russian reply-keyboard buttons, shown whenever the bot waits for the
+  member: balance, report, budget, new account, settings, help, and a hint on
+  how to record an entry. Settings: display and input currency, invite to the
+  family, link an API account, email and password. Every action is reachable
+  from a button; the commands stay as shortcuts (ADR-0011).
+- Multi-step actions are dialogs, one question at a time, and the menu gives way
+  to the answers (currencies, categories, "Отмена"): opening an account (name,
+  currency, personal or shared for the owner), setting a limit (category,
+  amount), choosing a currency, linking an account, a top-up ("Пополнить":
+  the account, then the amount with an optional source; the income category is
+  matched or asked with buttons; the currency defaults to the account's), a
+  transfer ("Перевод": from one of the member's accounts, to any account of the
+  family, then the amount in the source currency; between currencies the API
+  converts at the day's rate).
+- The owner invites a member with a link to the bot (`t.me/<bot>?start=<invite
+  code>`); the welcome after `/start` says no password is needed and lists the
+  first steps. The email-and-password screen explains that the bot itself never
+  needs one, and the steps to set it in the API.
 
 #### deploy (after MVP)
 
@@ -142,7 +163,7 @@ households per user.
 
 ## Tech Stack
 
-- Python 3.12+
+- Python 3.13+
 - FastAPI, Pydantic v2, pydantic-settings
 - PostgreSQL 16, SQLAlchemy 2.0 (async, asyncpg), Alembic
 - Redis 7: scheduler queue, rate limiting, cache

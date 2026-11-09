@@ -19,6 +19,9 @@ x-app: &app
     FAMILY_PNL_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     FAMILY_PNL_REDIS_URL: redis://redis:6379/0
     FAMILY_PNL_API_URL: http://api:8000
+    # Read by uvicorn in the api service: the proxies whose X-Forwarded-For it trusts
+    # (comma-separated IPs or CIDRs). The default is uvicorn's own; see docs/deploy.md.
+    FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
   read_only: true
   tmpfs:
     - /tmp
@@ -91,6 +94,17 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+# A fixed subnet keeps the gateway at 172.30.0.1: a proxy on the host reaches the api
+# container from that address, which FORWARDED_ALLOW_IPS trusts (docs/deploy.md, section 5).
+# If the range clashes with another network ("Pool overlaps"), change the subnet, the
+# gateway and FORWARDED_ALLOW_IPS together.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+          gateway: 172.30.0.1
 
 volumes:
   postgres-data:

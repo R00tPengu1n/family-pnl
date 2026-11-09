@@ -1,10 +1,12 @@
-"""/account <name> <currency> [общий]: a member opens an account from the bot.
+"""Opening an account from the bot: `/account <name> <currency> [общий]` or the dialog.
 
 Telegram-only members have no password for the API, so the bot is their way to open the
 accounts they record operations on. A personal account belongs to the member; a shared
 one (owner only, the API decides) to the household. The type is a card; it can be
 changed through the API.
 """
+
+from collections.abc import Callable
 
 from family_pnl_bot import messages
 from family_pnl_bot.api_client import ApiClient, ApiError
@@ -23,7 +25,23 @@ async def create_account(api: ApiClient, telegram_id: int, args: str | None) -> 
     currency = _CURRENCY.get(words[-1].lower()) if len(words) > 1 else None
     if currency is None:
         return Reply(messages.ACCOUNT_USAGE)
-    name = " ".join(words[:-1])
+    return await open_account(api, telegram_id, " ".join(words[:-1]), currency, shared)
+
+
+def currency_code(word: str) -> str | None:
+    """The ISO code of a currency word or sign (`byn`, `руб`, `$`), or None."""
+    return _CURRENCY.get(word.strip().lower())
+
+
+async def open_account(
+    api: ApiClient,
+    telegram_id: int,
+    name: str,
+    currency: str,
+    shared: bool,
+    done: Callable[[str, str, bool], str] = messages.account_created,
+) -> Reply:
+    """Open the account; `done` words the success (the dialog adds the next step)."""
     try:
         await api.request(
             telegram_id,
@@ -35,7 +53,7 @@ async def create_account(api: ApiClient, telegram_id: int, args: str | None) -> 
         if error.code == "permission_denied":
             return Reply(messages.SHARED_ACCOUNT_REFUSED)
         return Reply(messages.error_text(error))
-    return Reply(messages.account_created(name, currency, shared))
+    return Reply(done(name, currency, shared))
 
 
 async def credentials_code(api: ApiClient, telegram_id: int) -> Reply:

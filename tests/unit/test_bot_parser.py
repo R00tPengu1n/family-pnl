@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from family_pnl_bot.parser import CURRENCY_ALIASES, Entry, EntryError, parse_entry
+from family_pnl_bot.parser import CURRENCY_ALIASES, Entry, EntryError, parse_entry, parse_top_up
 
 
 @pytest.mark.parametrize(
@@ -80,3 +80,28 @@ def test_other_messages_are_refused_with_a_reason(text: str, reason: str) -> Non
         parse_entry(text)
 
     assert str(raised.value) == reason
+
+
+@pytest.mark.parametrize(
+    ("text", "entry"),
+    [
+        ("2500", Entry(income=True, category="", amount=Decimal("2500.00"), currency=None)),
+        ("2500 byn", Entry(income=True, category="", amount=Decimal("2500.00"), currency="BYN")),
+        (
+            "зарплата 2500",
+            Entry(income=True, category="зарплата", amount=Decimal("2500.00"), currency=None),
+        ),
+        (
+            "+подарок 100$",
+            Entry(income=True, category="подарок", amount=Decimal("100.00"), currency="USD"),
+        ),
+    ],
+)
+def test_a_top_up_is_an_income_with_an_optional_source(text: str, entry: Entry) -> None:
+    assert parse_top_up(text) == entry
+
+
+@pytest.mark.parametrize("text", ["много", "зарплата", "-5", ""])
+def test_a_top_up_without_an_amount_is_refused(text: str) -> None:
+    with pytest.raises(EntryError):
+        parse_top_up(text)

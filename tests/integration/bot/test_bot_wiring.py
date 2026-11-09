@@ -6,97 +6,15 @@ worker (`--dist loadgroup`): the other workers never pay for the import.
 """
 
 import runpy
-from collections.abc import AsyncGenerator, Awaitable, Callable
-from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 
 from family_pnl_bot import messages
 from family_pnl_bot.api_client import ApiClient
-from family_pnl_bot.throttle import AttemptLimiter
+from tests.integration.bot.conftest import ANNA, TOKEN, Telegram
 
 pytestmark = pytest.mark.xdist_group("aiogram")
-
-ANNA = 5000000001
-TOKEN = "123456:test-token"
-
-
-@dataclass
-class Telegram:
-    """A dispatcher fed with updates; what the bot sent is recorded instead of posted."""
-
-    feed: Callable[..., Awaitable[None]]
-    press: Callable[[str, bool], Awaitable[None]]
-    sent: list[str]
-    buttons: list[list[str]]  # callback data of the last keyboard the bot sent
-    dispatcher: Any
-
-
-@pytest.fixture
-def telegram(api: ApiClient) -> Telegram:
-    from aiogram import Bot
-    from aiogram.client.session.base import BaseSession
-    from aiogram.methods import AnswerCallbackQuery, EditMessageText, SendMessage
-    from aiogram.types import CallbackQuery, Chat, Message, Update, User
-
-    from family_pnl_bot.app import build_dispatcher
-
-    sent: list[str] = []
-    buttons: list[list[str]] = []
-
-    class RecordingSession(BaseSession):
-        async def make_request(self, bot: Bot, method: Any, **_: Any) -> Any:
-            if isinstance(method, AnswerCallbackQuery):
-                return True
-            assert isinstance(method, SendMessage | EditMessageText)
-            sent.append(method.text)
-            keyboard = method.reply_markup.inline_keyboard if method.reply_markup else []
-            buttons[:] = [[button.callback_data for button in row] for row in keyboard]
-            return Message(
-                message_id=2,
-                date=datetime.now(UTC),
-                chat=Chat(id=ANNA, type="private"),
-                text=method.text,
-            )
-
-        async def stream_content(self, *args: Any, **kwargs: Any) -> AsyncGenerator[bytes]:
-            for chunk in ():  # the handlers download no files
-                yield chunk
-
-        async def close(self) -> None:
-            return None
-
-    bot = Bot(TOKEN, session=RecordingSession())
-    dispatcher = build_dispatcher(api, AttemptLimiter(5, 900))
-
-    async def feed(text: str, user_id: int | None = ANNA, chat: str = "private") -> None:
-        sender = None if user_id is None else User(id=user_id, is_bot=False, first_name="Анна")
-        message = Message(
-            message_id=1,
-            date=datetime.now(UTC),
-            chat=Chat(id=user_id or -100, type=chat),
-            from_user=sender,
-            text=text,
-        )
-        await dispatcher.feed_update(bot, Update(update_id=1, message=message))
-
-    async def press(data: str, on_message: bool = True) -> None:
-        # Telegram leaves out the message when it is too old for the bot to see.
-        shown = Message(
-            message_id=2, date=datetime.now(UTC), chat=Chat(id=ANNA, type="private"), text="?"
-        )
-        callback = CallbackQuery(
-            id="1",
-            from_user=User(id=ANNA, is_bot=False, first_name="Анна"),
-            chat_instance="chat",
-            data=data,
-            message=shown if on_message else None,
-        )
-        await dispatcher.feed_update(bot, Update(update_id=2, callback_query=callback))
-
-    return Telegram(feed, press, sent, buttons, dispatcher)
 
 
 async def test_commands_reach_their_handlers_with_their_dependencies(
@@ -109,6 +27,7 @@ async def test_commands_reach_their_handlers_with_their_dependencies(
     assert (await api.me(ANNA)).display_name == "Анна"
     assert [router.name for router in telegram.dispatcher.sub_routers] == [
         "start",
+        "menu",
         "reports",
         "budget",
         "quick_entry",
@@ -141,25 +60,37 @@ async def test_messages_without_a_sender_get_no_answer(telegram: Telegram) -> No
 
 
 async def test_main_polls_with_the_configured_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    from aiogram import Dispatcher
+    from aiogram import Bot, Dispatcher
+    from aiogram.types import BotCommand
     from pydantic import SecretStr
 
     from family_pnl_bot.app import main
     from family_pnl_bot.config import BotSettings
 
     polled: list[str] = []
+    commands: list[list[str]] = []
 
     async def fake_polling(self: Dispatcher, bot: Any) -> None:
         polled.append(bot.token)
+        assert self["docs_url"] == "https://pnl.example.com/docs"
+
+    async def fake_set_commands(self: Bot, entries: list[BotCommand]) -> bool:
+        commands.append([entry.command for entry in entries])
+        return True
 
     monkeypatch.setattr(Dispatcher, "start_polling", fake_polling)
+    monkeypatch.setattr(Bot, "set_my_commands", fake_set_commands)
     settings = BotSettings(
-        _env_file=None, telegram_bot_token=SecretStr(TOKEN), bot_api_secret=SecretStr("s" * 32)
+        _env_file=None,
+        telegram_bot_token=SecretStr(TOKEN),
+        bot_api_secret=SecretStr("s" * 32),
+        public_api_url="https://pnl.example.com/",
     )
 
     await main(settings)
 
     assert polled == [TOKEN]
+    assert commands == [["menu", "cancel", "help", "start"]]
 
 
 def test_running_the_package_starts_main(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -245,7 +176,9 @@ async def test_balance_report_and_currency_commands_answer(
     await telegram.press(back, False)
 
     balance, currency, changed, report, previous = telegram.sent[1:]
-    assert balance.splitlines() == ["Card: 0.00 RUB", "Итого: 0.00 RUB"]
+    assert balance.splitlines()[:3] == ["Card: 0.00 RUB", "Итого: 0.00 RUB", ""]
+    assert balance.splitlines()[3].endswith(": расходы 0.00 RUB")
+    assert balance.splitlines()[4] == messages.NO_LIMITS_THIS_MONTH
     assert currency == "Суммы показываются в RUB. Выберите другую валюту:"
     assert changed == "Готово: отчёты и балансы теперь в USD."
     assert report.splitlines()[0].endswith(", USD")
@@ -258,7 +191,7 @@ async def test_budget_limit_and_approve_reach_their_handlers(telegram: Telegram)
 
     await telegram.feed("/limit продукты 800", ANNA)
     await telegram.feed("/budget", ANNA)
-    [[approve]] = telegram.buttons
+    [[_limit], [approve]] = telegram.buttons
     await telegram.press(approve)
     await telegram.press(approve, False)
 
@@ -303,4 +236,4 @@ async def test_password_hands_out_a_code_for_the_api(telegram: Telegram) -> None
 
     await telegram.feed("/password", ANNA)
 
-    assert telegram.sent[1].startswith("Код для email и пароля: ")
+    assert telegram.sent[1].startswith("Ваш код: ")
