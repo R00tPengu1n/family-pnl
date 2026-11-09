@@ -10,7 +10,8 @@ name: family-pnl
 
 x-app: &app
   build: .
-  image: family-pnl:local
+  # Built locally by default; the deploy workflow runs a tested image from GHCR instead.
+  image: ${FAMILY_PNL_IMAGE:-family-pnl:local}
   env_file: .env
   environment:
     FAMILY_PNL_ENVIRONMENT: production
