@@ -1,8 +1,9 @@
 # Deployment
 
-The service runs on one VPS with Docker Compose: API, worker, bot, PostgreSQL and Redis
-(see [architecture.md](architecture.md)). This page is the procedure, step by step; every
-command runs on the server unless it says otherwise.
+The service is designed to run on one VPS with Docker Compose: API, worker, bot,
+PostgreSQL and Redis (see [architecture.md](architecture.md)). It is not deployed publicly
+yet and runs locally for the owner's household. This page is the procedure, step by step;
+every command runs on the server unless it says otherwise.
 
 ## 1. Server
 
@@ -49,7 +50,7 @@ cp .env.example .env && chmod 600 .env
 The owner fills `.env` on the server: `POSTGRES_PASSWORD`, `FAMILY_PNL_JWT_SECRET`,
 `FAMILY_PNL_BOT_API_SECRET` (random, 32+ characters each:
 `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`) and
-`FAMILY_PNL_TELEGRAM_BOT_TOKEN`. Secrets live only in this file and in GitHub Secrets.
+`FAMILY_PNL_TELEGRAM_BOT_TOKEN`. Secrets live only in this file.
 
 ## 4. Start, and survive a reboot
 
@@ -77,9 +78,31 @@ sudo systemctl reload caddy
 sudo ufw allow 443/tcp && sudo ufw allow 80/tcp
 ```
 
-Behind a proxy the API must see real client IPs for the login rate limit (ADR-0006): run
-uvicorn with `--proxy-headers --forwarded-allow-ips=127.0.0.1` (override `command` of the
-`api` service).
+Behind a proxy the API must see real client IPs for the login rate limit (ADR-0006),
+otherwise every login shares one address and five failures lock everyone out. uvicorn
+reads `X-Forwarded-For` (`--proxy-headers` is on by default) only from the addresses in
+`FORWARDED_ALLOW_IPS`, which `docker-compose.yml` passes from `.env`; the default,
+`127.0.0.1,::1`, trusts nobody but the container itself.
+
+Caddy on the host connects to the published port, so inside the container its requests
+come from the gateway of the Compose network, not from 127.0.0.1. `docker-compose.yml`
+pins that network to `172.30.0.0/24` with the gateway `172.30.0.1`; trust exactly that
+address:
+
+```bash
+nano .env                    # FORWARDED_ALLOW_IPS=172.30.0.1
+docker compose up -d api     # recreates the api container with the new value
+```
+
+A stack started before the subnet was pinned keeps its old network: run
+`docker compose down` and `docker compose up -d` once (the volumes and the data stay). If
+`172.30.0.0/24` clashes with another network on the server ("Pool overlaps"), change the
+subnet and the gateway in `docker-compose.yml` and `FORWARDED_ALLOW_IPS` together.
+
+Keep `API_BIND` at `127.0.0.1`: with the port open to the internet, some clients'
+connections (those Docker relays through its userland proxy) would also arrive from the
+gateway and could set the header themselves. If Caddy runs as a service in the same
+Compose file instead, trust the address of its container.
 
 ## 6. Backups
 
@@ -125,5 +148,9 @@ git pull
 docker compose up --build -d            # migrate runs before api and worker start
 ```
 
-A failed migration stops `migrate`, and the API and the worker do not start with an
-unmigrated schema; `docker compose logs migrate` shows why.
+Migrations run in one transaction before the API and the worker start. A failed migration
+leaves the schema at its previous revision; `docker compose up` exits with an error and
+does not start the API, the worker and the bot, which depend on `migrate`. Check
+`docker compose ps -a` for what is running and `docker compose logs migrate` for why it
+failed; then fix the migration (or check out the previous commit) and run
+`docker compose up --build -d` again.

@@ -190,7 +190,8 @@ def get_settings_service(
 
 
 def get_client_ip(request: Request) -> str:
-    # The direct peer. Behind a reverse proxy uvicorn's --proxy-headers sets it (Task 35).
+    # The direct peer, or the X-Forwarded-For client when uvicorn trusts the peer as a
+    # proxy (FORWARDED_ALLOW_IPS, docs/deploy.md section 5).
     return request.client.host if request.client is not None else "unknown"
 
 
