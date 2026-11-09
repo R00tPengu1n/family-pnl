@@ -157,6 +157,71 @@ def test_new_exception_row_is_flagged_and_removing_one_is_silent() -> None:
     assert guard.check([], [Line("CONSTRAINTS.md", row)], []) == []
 
 
+BUDGET_90 = "| Task-end budget | Full local check ≤ 90 s | check.ps1 |"
+BUDGET_120 = "| Task-end budget | Full local check ≤ 120 s | check.ps1 |"
+
+
+def decide(row: str) -> None:
+    """Write an owner decisions table into the CONSTRAINTS.md of the test directory."""
+    Path("CONSTRAINTS.md").write_text(
+        "## Owner decisions\n\n| ID | Rules | New value | Date | Reason |\n|---|---|---|---|---|\n"
+        + row
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def loosen_budget() -> list[Any]:
+    added = [Line("CONSTRAINTS.md", BUDGET_120)]
+    return guard.check(added, [Line("CONSTRAINTS.md", BUDGET_90)], [])
+
+
+def test_an_owner_decision_lets_a_loosened_threshold_through_and_is_reported() -> None:
+    decide("| D1 | Task-end budget, task | ≤ 120 s | 2026-10-25 | slower suite |")
+
+    findings = loosen_budget()
+
+    assert rules(findings) == ["owner-decision"]
+    assert findings[0].text == "D1: Task-end budget -> ≤ 120 s"
+
+
+def test_a_decision_for_another_rule_does_not_count() -> None:
+    decide("| D1 | Edit-loop budget | ≤ 120 s | 2026-10-25 | slower suite |")
+
+    assert rules(loosen_budget()) == ["threshold-loosened"]
+
+
+def test_a_decision_for_another_value_does_not_count() -> None:
+    decide("| D1 | Task-end budget | ≤ 100 s | 2026-10-25 | slower suite |")
+
+    assert rules(loosen_budget()) == ["threshold-loosened"]
+
+
+def test_a_decision_without_a_value_does_not_count() -> None:
+    decide("| D1 | Task-end budget |  | 2026-10-25 | slower suite |")
+
+    assert rules(loosen_budget()) == ["threshold-loosened"]
+
+
+def test_an_exception_row_is_not_a_decision() -> None:
+    decide("| W1 | Task-end budget | ≤ 120 s | 2026-10-25 | slower suite |")
+
+    assert rules(loosen_budget()) == ["threshold-loosened"]
+
+
+def test_a_decision_does_not_excuse_a_removed_rule() -> None:
+    decide("| D1 | Task-end budget | ≤ 120 s | 2026-10-25 | slower suite |")
+
+    assert rules(guard.check([], [Line("CONSTRAINTS.md", BUDGET_90)], [])) == ["rule-removed"]
+
+
+def test_decision_rows_are_records_not_rules() -> None:
+    row = "| D1 | Task-end budget | ≤ 120 s | 2026-10-25 | slower suite |"
+
+    assert guard.check([Line("CONSTRAINTS.md", row)], [], []) == []
+    assert guard.check([], [Line("CONSTRAINTS.md", row)], []) == []
+
+
 def test_parse_diff_tracks_files_additions_removals_and_deletions() -> None:
     diff = "\n".join(
         [
@@ -233,3 +298,21 @@ def test_script_exits_2_when_the_base_is_missing(repo: Path) -> None:
     result = run_guard(repo, "--base", "no-such-ref")
 
     assert result.returncode == 2
+
+
+def test_script_prints_an_applied_owner_decision_and_exits_0(repo: Path) -> None:
+    (repo / "CONSTRAINTS.md").write_text(BUDGET_90 + "\n", encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "constraints")
+    (repo / "CONSTRAINTS.md").write_text(
+        BUDGET_120 + "\n\n| D1 | Task-end budget | ≤ 120 s | 2026-10-25 | slower suite |\n",
+        encoding="utf-8",
+    )
+
+    result = run_guard(repo, "--base", "main")
+
+    assert result.returncode == 0
+    assert result.stdout.splitlines() == [
+        "floor-guard: applied owner decision D1: Task-end budget -> ≤ 120 s",
+        "floor-guard: clean",
+    ]

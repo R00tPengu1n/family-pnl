@@ -4,6 +4,9 @@ Detects moves that lower the bar between the merge base and the working tree:
 a silenced checker, a test made easier or deleted, an assertion removed,
 unfinished work, a new exception, and a weakened or removed rule in CONSTRAINTS.md.
 
+A loosened threshold passes only when an owner decision in CONSTRAINTS.md names the rule
+and the new value the rule now states; the decision is printed so the review sees it.
+
 Usage: python scripts/floor_guard.py [--base <ref>]   (default base: origin/main)
 Exit codes: 0 clean, 1 floor violation, 2 the guard could not run.
 
@@ -35,6 +38,9 @@ SKIPS = re.compile(
 ASSERTIONS = re.compile(r"\bassert\b|pytest\.raises|pytest\.warns|\.assert_\w+\(")
 EXCEPTION_ROW = re.compile(r"^\|\s*W\d+\s*\|")
 EXCEPTION_REF = re.compile(r"\bW\d+\b")
+DECISION_ROW = re.compile(r"^\|\s*D\d+\s*\|")
+# Findings that are reported but do not fail the guard.
+NOTICES = {"owner-decision"}
 
 MIN_BEFORE = re.compile(r"(>=|>|≥|at least|minimum|\bmin\b|no less than|not fall|not drop)\s*$")
 MAX_BEFORE = re.compile(
@@ -170,9 +176,36 @@ def known_exceptions() -> set[str]:
     }
 
 
+@dataclass(frozen=True, slots=True)
+class Decision:
+    id: str
+    rules: frozenset[str]
+    value: str
+
+
+def known_decisions() -> list[Decision]:
+    """Rows `| D<n> | <rule>[, <rule>...] | <new value> | <date> | <reason> |`."""
+    path = Path(CONSTRAINTS)
+    if not path.exists():
+        return []
+    decisions = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if DECISION_ROW.match(line.strip()):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) >= 3 and cells[2]:
+                rules = frozenset(r.strip() for r in cells[1].split(",") if r.strip())
+                decisions.append(Decision(cells[0], rules, cells[2]))
+    return decisions
+
+
+def approving(decisions: list[Decision], key: str, new_text: str) -> Decision | None:
+    return next((d for d in decisions if key in d.rules and d.value in new_text), None)
+
+
 def check(added: list[Line], removed: list[Line], deleted: list[str]) -> list[Finding]:
     findings: list[Finding] = []
     exceptions = known_exceptions()
+    decisions = known_decisions()
 
     def flag(rule: str, file: str, text: str) -> None:
         findings.append(Finding(rule, file, text.strip()[:120]))
@@ -210,8 +243,16 @@ def check(added: list[Line], removed: list[Line], deleted: list[str]) -> list[Fi
         if lost > 0:
             flag("assertion-removed", path, f"{lost} fewer assertion(s), e.g. {texts[0].strip()}")
 
-    removed_rules = [r for r in removed if r.file == CONSTRAINTS and rule_key(r.text)]
-    added_rules = [a for a in added if a.file == CONSTRAINTS and rule_key(a.text)]
+    # Owner decision rows are records, not rules: one is shown when it is applied.
+    def is_rule(line: Line) -> bool:
+        return (
+            line.file == CONSTRAINTS
+            and bool(rule_key(line.text))
+            and not DECISION_ROW.match(line.text.strip())
+        )
+
+    removed_rules = [r for r in removed if is_rule(r)]
+    added_rules = [a for a in added if is_rule(a)]
     for old in removed_rules:
         new = next((a for a in added_rules if rule_key(a.text) == rule_key(old.text)), None)
         if new is None:
@@ -220,7 +261,11 @@ def check(added: list[Line], removed: list[Line], deleted: list[str]) -> list[Fi
                 flag("rule-removed", old.file, old.text)
             continue
         verdict = compare_rule(old.text, new.text)
-        if verdict:
+        decision = approving(decisions, rule_key(old.text) or "", new.text)
+        if verdict == "threshold-loosened" and decision is not None:
+            note = f"{decision.id}: {rule_key(old.text)} -> {decision.value}"
+            flag("owner-decision", old.file, note)
+        elif verdict:
             flag(verdict, old.file, f"{old.text.strip()}  ->  {new.text.strip()}")
     return findings
 
@@ -244,6 +289,10 @@ def main() -> int:
         print(f"floor-guard: {exc}", file=sys.stderr)
         return 2
 
+    for f in findings:
+        if f.rule in NOTICES:
+            print(f"floor-guard: applied owner decision {f.text}")
+    findings = [f for f in findings if f.rule not in NOTICES]
     if not findings:
         print("floor-guard: clean")
         return 0

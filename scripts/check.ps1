@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     fast  - ruff, ruff format, mypy, import-linter, floor guard   (budget 10 s)
-    task  - fast + pytest with the coverage gate                  (budget 90 s)
+    task  - fast + pytest with the coverage gate                  (budget 120 s)
     full  - task + pip-audit                                      (no budget)
     Every check runs; the script exits 1 if any check fails or a budget is exceeded,
     2 if the environment cannot be prepared. The report is written to .reports/check.log.
@@ -29,7 +29,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$budgets = @{ fast = 10; task = 90; full = 0 }
+$budgets = @{ fast = 10; task = 120; full = 0 }
 $python = Join-Path $root '.venv\Scripts\python.exe'
 $reportDir = Join-Path $root '.reports'
 $report = Join-Path $reportDir 'check.log'

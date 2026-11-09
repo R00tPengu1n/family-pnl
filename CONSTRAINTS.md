@@ -35,7 +35,7 @@ Checked by `python scripts/floor_guard.py` on the diff against `origin/main`
 | Security: code | Zero findings at ERROR severity | `semgrep scan --config p/python --config p/owasp-top-ten --severity ERROR --error src` | CI | External opinion on injection, crypto and auth mistakes; WARNING findings are reviewed, not blocking |
 | Security: deps | No known vulnerability in locked dependencies | `uv export --frozen --no-emit-project` then `pip-audit -r <file> --strict --require-hashes --disable-pip` | CI | External vulnerability database; required by the spec |
 | Mutation score | ≥ 60% killed mutants in `src/family_pnl/domain/` | `mutmut run` on changed domain modules, score from `mutmut export-cicd-stats` | CI, PRs touching `domain/` | Starting value for a suite never mutated before; raised by ratchet |
-| Task-end budget | Full local check ≤ 90 s | `.\scripts\check.ps1 -Stage task` | task end | Owner's limit; slower checks move to CI |
+| Task-end budget | Full local check ≤ 120 s | `.\scripts\check.ps1 -Stage task` | task end | Owner's limit, raised from 90 s by the owner on 2026-10-25 (~940 tests ran 86–91 s); slower checks move to CI |
 | Edit-loop budget | Fast check ≤ 10 s | `.\scripts\check.ps1 -Stage fast` | after edits | A slow edit loop gets skipped |
 | Exception lifetime | ≤ 90 days | review of the Exceptions table | review | Long enough to plan a fix, short enough to remember |
 
@@ -58,7 +58,7 @@ blocked, so `check.ps1` runs every tool as `python -m <tool>` from `.venv`.
 | Stage | Command | What runs | Budget |
 |---|---|---|---|
 | fast | `.\scripts\check.ps1 -Stage fast` | ruff check, ruff format check, mypy, lint-imports, floor guard | ≤ 10 s |
-| task | `.\scripts\check.ps1 -Stage task` | fast + pytest with coverage gate | ≤ 90 s |
+| task | `.\scripts\check.ps1 -Stage task` | fast + pytest with coverage gate | ≤ 120 s |
 | full | `.\scripts\check.ps1 -Stage full` | task + pip-audit (Semgrep, gitleaks and mutmut run in CI on Linux: their Windows support is limited) | minutes |
 | CI | `.github/workflows/ci.yml` | full + Semgrep + gitleaks + mutmut + Docker build | minutes |
 
@@ -74,6 +74,16 @@ value is recorded here. Enforced in CI: `scripts/ratchet.py` (coverage) and
 |---|---|---|
 | Project coverage | 100.00% (2026-10-24, Task 3) | must not fall |
 | Mutation score (domain) | at least 100.0% (Task 4, 2026-10-24: all 17 mutants killed) | must not fall |
+
+## Owner decisions
+
+A threshold is loosened only by the owner, recorded here: the rules it changes (their
+first column, comma-separated), the value they now state, when and why. The floor guard
+lets a loosened threshold through only with such a row, and prints the row it applied.
+
+| ID | Rules | New value | Date | Reason |
+|---|---|---|---|---|
+| D1 | Task-end budget, task | ≤ 120 s | 2026-10-25 | ~940 tests take 86–91 s locally with coverage; the owner raised the limit from 90 s |
 
 ## Exceptions
 
