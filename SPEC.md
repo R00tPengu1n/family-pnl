@@ -163,7 +163,7 @@ households per user.
 
 ## Tech Stack
 
-- Python 3.12+
+- Python 3.13+
 - FastAPI, Pydantic v2, pydantic-settings
 - PostgreSQL 16, SQLAlchemy 2.0 (async, asyncpg), Alembic
 - Redis 7: scheduler queue, rate limiting, cache
